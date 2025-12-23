@@ -26,32 +26,39 @@ export default function ChatList({
   );
 
   return (
-    <aside className="h-full min-w-0 border-r bg-slate-50 flex flex-col">
+    <aside className="h-full min-w-0 border-r border-neutral-800 bg-black flex flex-col text-neutral-100">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 h-14 border-b">
+      <div className="flex items-center justify-between px-4 h-14 border-b border-neutral-800">
         <div className="flex items-center gap-2">
-          <p className="font-semibold">Inbox</p>
-          <Badge>{chats.length}</Badge>
+          <p className="font-semibold tracking-wide">Inbox</p>
+          <Badge className="bg-neutral-800 text-neutral-200">
+            {chats.length}
+          </Badge>
         </div>
         <div className="flex gap-1">
-          <Button size="icon" variant="ghost">
-            <Filter className="h-4 w-4" />
+          <Button size="icon" variant="ghost" className="hover:bg-neutral-800">
+            <Filter className="h-4 w-4 text-neutral-300" />
           </Button>
-          <Button size="icon" variant="ghost">
-            <MoreVertical className="h-4 w-4" />
+          <Button size="icon" variant="ghost" className="hover:bg-neutral-800">
+            <MoreVertical className="h-4 w-4 text-neutral-300" />
           </Button>
         </div>
       </div>
 
       {/* Search */}
-      <div className="p-2 border-b">
+      <div className="p-3 border-b border-neutral-800">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
           <input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Cari chat..."
-            className="w-full pl-9 pr-3 py-2 text-sm rounded-lg bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="
+              w-full pl-9 pr-3 py-2 text-sm rounded-lg
+              bg-neutral-900 text-neutral-100
+              placeholder:text-neutral-500
+              focus:outline-none focus:ring-2 focus:ring-neutral-700
+            "
           />
         </div>
       </div>
@@ -73,14 +80,17 @@ export default function ChatList({
               <div
                 key={chat.id}
                 onClick={() => onSelectChat?.(chat)}
-                className={`flex gap-3 p-3 rounded-lg cursor-pointer transition ${
-                  activeChatId === chat.id
-                    ? "bg-blue-100"
-                    : "hover:bg-slate-200"
-                }`}
+                className={`
+                  group flex gap-3 p-3 rounded-xl cursor-pointer transition-all
+                  ${
+                    activeChatId === chat.id
+                      ? "bg-neutral-800 ring-1 ring-neutral-700"
+                      : "hover:bg-neutral-900"
+                  }
+                `}
               >
                 <Avatar className="h-10 w-10">
-                  <AvatarFallback className="text-sm font-semibold">
+                  <AvatarFallback className="bg-neutral-700 text-sm font-semibold text-white">
                     {chat.name
                       .split(" ")
                       .map((n) => n[0])
@@ -89,14 +99,16 @@ export default function ChatList({
                 </Avatar>
 
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{chat.name}</p>
-                  <p className="text-xs truncate opacity-80">
+                  <p className="font-medium truncate text-neutral-100">
+                    {chat.name}
+                  </p>
+                  <p className="text-xs truncate text-neutral-400">
                     {lastMessage?.text ?? "Belum ada pesan"}
                   </p>
                 </div>
 
                 {showUnread && (
-                  <span className="h-5 min-w-[20px] rounded-full bg-red-500 text-white text-xs flex items-center justify-center px-1">
+                  <span className="h-5 min-w-[20px] rounded-full bg-red-600 text-white text-xs flex items-center justify-center px-1">
                     {unreadCount}
                   </span>
                 )}
