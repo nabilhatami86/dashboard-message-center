@@ -26,27 +26,27 @@ export default function ChatList({
   );
 
   return (
-    <aside className="h-full min-w-0 border-r border-neutral-800 bg-black flex flex-col text-neutral-100">
+    <aside className="h-full min-w-0 border-r border-neutral-200 bg-white flex flex-col text-neutral-900">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 h-14 border-b border-neutral-800">
+      <div className="flex items-center justify-between px-4 h-14 border-b border-neutral-200">
         <div className="flex items-center gap-2">
           <p className="font-semibold tracking-wide">Inbox</p>
-          <Badge className="bg-neutral-800 text-neutral-200">
+          <Badge className="bg-neutral-100 text-neutral-700">
             {chats.length}
           </Badge>
         </div>
         <div className="flex gap-1">
-          <Button size="icon" variant="ghost" className="hover:bg-neutral-800">
-            <Filter className="h-4 w-4 text-neutral-300" />
+          <Button size="icon" variant="ghost" className="hover:bg-neutral-100">
+            <Filter className="h-4 w-4 text-neutral-600" />
           </Button>
-          <Button size="icon" variant="ghost" className="hover:bg-neutral-800">
-            <MoreVertical className="h-4 w-4 text-neutral-300" />
+          <Button size="icon" variant="ghost" className="hover:bg-neutral-100">
+            <MoreVertical className="h-4 w-4 text-neutral-600" />
           </Button>
         </div>
       </div>
 
       {/* Search */}
-      <div className="p-3 border-b border-neutral-800">
+      <div className="p-3 border-b border-neutral-200">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
           <input
@@ -55,9 +55,9 @@ export default function ChatList({
             placeholder="Cari chat..."
             className="
               w-full pl-9 pr-3 py-2 text-sm rounded-lg
-              bg-neutral-900 text-neutral-100
+              bg-neutral-100 text-neutral-900
               placeholder:text-neutral-500
-              focus:outline-none focus:ring-2 focus:ring-neutral-700
+              focus:outline-none focus:ring-2 focus:ring-neutral-300
             "
           />
         </div>
@@ -84,13 +84,13 @@ export default function ChatList({
                   group flex gap-3 p-3 rounded-xl cursor-pointer transition-all
                   ${
                     activeChatId === chat.id
-                      ? "bg-neutral-800 ring-1 ring-neutral-700"
-                      : "hover:bg-neutral-900"
+                      ? "bg-neutral-200 ring-1 ring-neutral-300"
+                      : "hover:bg-neutral-100"
                   }
                 `}
               >
                 <Avatar className="h-10 w-10">
-                  <AvatarFallback className="bg-neutral-700 text-sm font-semibold text-white">
+                  <AvatarFallback className="bg-neutral-300 text-sm font-semibold text-neutral-800">
                     {chat.name
                       .split(" ")
                       .map((n) => n[0])
@@ -99,16 +99,16 @@ export default function ChatList({
                 </Avatar>
 
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate text-neutral-100">
+                  <p className="font-medium truncate text-neutral-900">
                     {chat.name}
                   </p>
-                  <p className="text-xs truncate text-neutral-400">
+                  <p className="text-xs truncate text-neutral-500">
                     {lastMessage?.text ?? "Belum ada pesan"}
                   </p>
                 </div>
 
                 {showUnread && (
-                  <span className="h-5 min-w-[20px] rounded-full bg-red-600 text-white text-xs flex items-center justify-center px-1">
+                  <span className="h-5 min-w-[20px] rounded-full bg-red-500 text-white text-xs flex items-center justify-center px-1">
                     {unreadCount}
                   </span>
                 )}

@@ -26,22 +26,29 @@ export default function CustomerDetail({ chat, onClose }: CustomerDetailProps) {
   const profile = chat.profile ?? {};
 
   return (
-    <aside className="h-full w-80 flex flex-col border-l bg-white">
+    <aside className="h-full w-80 flex flex-col border-l border-neutral-200 bg-white">
       {/* HEADER */}
-      <div className="flex items-center justify-between px-5 py-4 border-b">
-        <h3 className="text-sm font-medium text-slate-800">Customer</h3>
+      <div className="flex items-center justify-between px-5 h-14 border-b border-neutral-200">
+        <h3 className="text-sm font-semibold text-neutral-900">
+          Customer Detail
+        </h3>
 
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setIsFavorite((v) => !v)}
-            className={isFavorite ? "text-amber-500" : "text-slate-400"}
+            className={isFavorite ? "text-amber-500" : "text-neutral-400"}
           >
             <Star className={`h-4 w-4 ${isFavorite ? "fill-amber-500" : ""}`} />
           </Button>
 
-          <Button variant="ghost" size="icon" onClick={onClose}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="text-neutral-500 hover:text-neutral-800"
+          >
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -49,9 +56,9 @@ export default function CustomerDetail({ chat, onClose }: CustomerDetailProps) {
 
       {/* CONTENT */}
       <div className="flex-1 overflow-y-auto px-5 py-6 space-y-8">
-        {/* PROFILE */}
-        <div className="rounded-2xl border bg-gradient-to-br from-slate-900 to-slate-800 text-white p-5">
-          <div className="flex gap-4 items-center">
+        {/* PROFILE CARD */}
+        <div className="rounded-2xl border border-neutral-200 bg-neutral-900 p-5 text-white">
+          <div className="flex items-center gap-4">
             <Avatar className="h-14 w-14">
               <AvatarFallback className="bg-white/10 text-lg font-semibold">
                 {chat.name
@@ -69,7 +76,7 @@ export default function CustomerDetail({ chat, onClose }: CustomerDetailProps) {
               <div className="flex items-center gap-2 text-xs text-white/70 mt-1">
                 <span
                   className={`h-2 w-2 rounded-full ${
-                    chat.online ? "bg-emerald-400" : "bg-slate-400"
+                    chat.online ? "bg-emerald-400" : "bg-neutral-400"
                   }`}
                 />
                 {chat.online ? "Online" : "Offline"}
@@ -83,10 +90,10 @@ export default function CustomerDetail({ chat, onClose }: CustomerDetailProps) {
           </div>
         </div>
 
-        {/* CONTACT INFO */}
+        {/* CONTACT */}
         <section className="space-y-4">
-          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-            Contact
+          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
+            Contact Info
           </h4>
 
           <InfoItem
@@ -117,10 +124,10 @@ export default function CustomerDetail({ chat, onClose }: CustomerDetailProps) {
         {/* NOTES */}
         {profile.notes && (
           <section className="space-y-3">
-            <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+            <h4 className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
               Notes
             </h4>
-            <div className="rounded-xl border bg-slate-50 p-4 text-sm text-slate-700">
+            <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700 leading-relaxed">
               {profile.notes}
             </div>
           </section>
@@ -140,13 +147,13 @@ function InfoItem({
   content: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border bg-white px-4 py-3">
-      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100">
+    <div className="flex items-center gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-3 hover:bg-neutral-50 transition-colors">
+      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-neutral-100">
         {icon}
       </div>
       <div className="flex-1">
-        <p className="text-[11px] text-slate-500">{title}</p>
-        <div className="text-sm font-medium text-slate-800">{content}</div>
+        <p className="text-[11px] text-neutral-500">{title}</p>
+        <div className="text-sm font-medium text-neutral-900">{content}</div>
       </div>
     </div>
   );
