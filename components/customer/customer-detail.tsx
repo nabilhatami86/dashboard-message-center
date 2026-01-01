@@ -62,15 +62,15 @@ export default function CustomerDetail({ chat, onClose }: CustomerDetailProps) {
             <Avatar className="h-14 w-14">
               <AvatarFallback className="bg-white/10 text-lg font-semibold">
                 {chat.name
-                  .split(" ")
+                  ?.split(" ")
                   .map((n) => n[0])
-                  .join("")}
+                  .join("") ?? "?"}
               </AvatarFallback>
             </Avatar>
 
             <div className="flex-1">
               <h2 className="font-semibold text-base leading-tight">
-                {chat.name}
+                {chat.name ?? "Unknown"}
               </h2>
 
               <div className="flex items-center gap-2 text-xs text-white/70 mt-1">

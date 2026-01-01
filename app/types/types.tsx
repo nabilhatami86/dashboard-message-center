@@ -11,7 +11,7 @@ export interface Agent {
 /* =====================
  * MESSAGE
  * ===================== */
-export type MessageSender = "customer" | "agent";
+export type MessageSender = "customer" | "agent" | "admin";
 export type MessageStatus = "sent" | "read";
 
 export interface Message {
@@ -20,6 +20,14 @@ export interface Message {
   sender: MessageSender;
   time: string;
   status?: MessageStatus;
+}
+
+/* =====================
+ * ADMIN CHAT
+ * ===================== */
+export interface AdminChat {
+  id: number;
+  messages: Message[];
 }
 
 /* =====================

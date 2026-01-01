@@ -67,7 +67,7 @@ export default function SimpleSidebar({
 
   const handleLogout = () => {
     logout();
-    router.replace("/");
+    router.replace("/login");
   };
 
   return (

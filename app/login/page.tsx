@@ -23,14 +23,21 @@ export default function LoginPage() {
     if (user.role === "agent") router.replace("/dashboard-agent");
   }, [user, router]);
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
-    const success = login(email, password);
-    if (!success) {
-      setError("Email atau password salah");
+    try {
+      const success = await login(email, password);
+      if (!success) {
+        setError("Username atau password salah");
+        setLoading(false);
+      }
+      // Redirect handled by useEffect when user state changes
+    } catch (err) {
+      console.error("Login error:", err);
+      setError("Gagal login. Periksa koneksi ke backend.");
       setLoading(false);
     }
   };

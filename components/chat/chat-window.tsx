@@ -98,14 +98,14 @@ export default function ChatWindow({
           <Avatar>
             <AvatarFallback>
               {chat.name
-                .split(" ")
+                ?.split(" ")
                 .map((w) => w[0])
-                .join("")}
+                .join("") ?? "?"}
             </AvatarFallback>
           </Avatar>
 
           <div>
-            <p className="font-semibold">{chat.name}</p>
+            <p className="font-semibold">{chat.name ?? "Unknown"}</p>
             <div className="flex gap-2 mt-1">
               <Badge variant="secondary">{chat.channel}</Badge>
               <Badge

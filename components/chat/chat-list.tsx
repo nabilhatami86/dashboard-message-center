@@ -22,7 +22,7 @@ export default function ChatList({
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredChats = chats.filter((chat) =>
-    chat.name.toLowerCase().includes(searchQuery.toLowerCase())
+    chat.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -92,15 +92,15 @@ export default function ChatList({
                 <Avatar className="h-10 w-10">
                   <AvatarFallback className="bg-neutral-300 text-sm font-semibold text-neutral-800">
                     {chat.name
-                      .split(" ")
+                      ?.split(" ")
                       .map((n) => n[0])
-                      .join("")}
+                      .join("") ?? "?"}
                   </AvatarFallback>
                 </Avatar>
 
                 <div className="flex-1 min-w-0">
                   <p className="font-medium truncate text-neutral-900">
-                    {chat.name}
+                    {chat.name ?? "Unknown"}
                   </p>
                   <p className="text-xs truncate text-neutral-500">
                     {lastMessage?.text ?? "Belum ada pesan"}
