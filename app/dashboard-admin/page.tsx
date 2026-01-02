@@ -4,12 +4,26 @@ import { useState, useEffect, useRef } from "react";
 import ChatList from "@/components/chat/chat-list";
 import ChatWindow from "@/components/chat/chat-window";
 import CustomerDetail from "@/components/customer/customer-detail";
+import AgentList from "@/components/chat/agent-list";
+import AdminAgentChatWindow from "@/components/chat/admin-agent-chat-window";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
-import { Chat } from "@/app/types/types";
-import { LogOut } from "lucide-react";
+import { Chat, AdminChat } from "@/app/types/types";
+import { LogOut, MessageSquare, Users } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
-import { getChats, sendMessage, deleteChat } from "@/lib/api";
-import { transformChatResponse } from "@/lib/transform";
+import {
+  getChats,
+  sendMessage,
+  deleteChat,
+  getAgentList,
+  AgentUser,
+  getAdminChat,
+  sendAdminMessage,
+} from "@/lib/api";
+import {
+  transformChatResponse,
+  transformAdminChatResponse,
+} from "@/lib/transform";
+import { useSmartRefresh } from "@/hooks/useSmartRefresh";
 
 function DashboardContent() {
   const [chats, setChats] = useState<Chat[]>([]);
@@ -22,106 +36,73 @@ function DashboardContent() {
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedChats, setSelectedChats] = useState<Set<number>>(new Set());
 
+  // Tab state
+  const [activeTab, setActiveTab] = useState<"customer" | "agent">("customer");
+
+  // Agent chat state
+  const [agents, setAgents] = useState<AgentUser[]>([]);
+  const [activeAgentId, setActiveAgentId] = useState<number | null>(null);
+  const [adminChat, setAdminChat] = useState<AdminChat>({
+    id: 0,
+    mode: "bot",
+    messages: [],
+  });
+
   const user = useAuthStore((state) => state.user);
   const token = useAuthStore((state) => state.token);
   const logout = useAuthStore((state) => state.logout);
 
   // Use ref to track first load - tidak trigger re-render
   const isFirstLoadRef = useRef(true);
-  const isSelectModeRef = useRef(false);
-
-  // Update ref when isSelectMode changes
-  useEffect(() => {
-    isSelectModeRef.current = isSelectMode;
-  }, [isSelectMode]);
 
   // Load all chats from backend (Admin sees all chats)
-  useEffect(() => {
-    async function loadChats() {
-      if (!token) {
-        setError("Please login first");
-        setLoading(false);
-        return;
-      }
-
-      try {
-        // Jangan tampilkan loading spinner saat background refresh
-        const isFirstLoad = isFirstLoadRef.current;
-        if (isFirstLoad) {
-          setLoading(true);
-        }
-
-        const chatData = await getChats(token);
-        const transformedChats = chatData.map(transformChatResponse);
-
-        setChats((prevChats) => {
-          // PERBAIKAN: HANYA auto-select chat pertama pada first load
-          if (isFirstLoad && transformedChats.length > 0) {
-            setActiveChatId(transformedChats[0].id);
-            isFirstLoadRef.current = false;
-          }
-
-          // OPTIMASI: Deep comparison untuk menghindari unnecessary re-render
-          if (prevChats.length === transformedChats.length && prevChats.length > 0) {
-            // Check apakah ada perubahan di setiap chat
-            const hasChanges = transformedChats.some((newChat, idx) => {
-              const oldChat = prevChats[idx];
-
-              if (!oldChat) return true;
-
-              // Compare chat properties
-              if (newChat.id !== oldChat.id) return true;
-              if (newChat.name !== oldChat.name) return true;
-              if (newChat.online !== oldChat.online) return true;
-              if (newChat.unread !== oldChat.unread) return true;
-              if (newChat.mode !== oldChat.mode) return true;
-
-              // Compare messages
-              if (newChat.messages.length !== oldChat.messages.length) return true;
-
-              // Compare last message only (optimization)
-              const newLastMsg = newChat.messages.at(-1);
-              const oldLastMsg = oldChat.messages.at(-1);
-
-              if (newLastMsg?.id !== oldLastMsg?.id) return true;
-              if (newLastMsg?.text !== oldLastMsg?.text) return true;
-              if (newLastMsg?.status !== oldLastMsg?.status) return true;
-
-              return false;
-            });
-
-            if (!hasChanges) {
-              return prevChats; // Tidak ada perubahan, skip update
-            }
-          }
-
-          return transformedChats;
-        });
-
-        setError(null);
-
-        // Set loading false setelah first load berhasil
-        if (isFirstLoad) {
-          setLoading(false);
-        }
-      } catch (err) {
-        console.error("Failed to load chats:", err);
-        setError("Failed to load chats from backend");
-        setLoading(false); // PENTING: Set loading false saat error
-      }
+  const loadChats = async () => {
+    if (!token) {
+      setError("Please login first");
+      setLoading(false);
+      return;
     }
 
-    loadChats();
-    // Refresh chats every 15 seconds (lebih lambat untuk UI yang smooth)
-    // Skip refresh jika dalam select mode
-    const interval = setInterval(() => {
-      if (!isSelectModeRef.current) {
-        loadChats();
+    try {
+      // Only show loading on first load
+      if (isFirstLoadRef.current) {
+        setLoading(true);
       }
-    }, 15000);
 
-    return () => clearInterval(interval);
-  }, [token]);
+      const chatData = await getChats(token);
+      const transformedChats = chatData.map(transformChatResponse);
+
+      setChats(() => {
+        // PERBAIKAN: HANYA auto-select chat pertama pada first load
+        // Dan JANGAN ubah activeChatId saat refresh berikutnya
+        if (isFirstLoadRef.current && transformedChats.length > 0) {
+          setActiveChatId(transformedChats[0].id);
+          isFirstLoadRef.current = false;
+        }
+
+        return transformedChats;
+      });
+
+      setError(null);
+    } catch (err) {
+      console.error("Failed to load chats:", err);
+      if (isFirstLoadRef.current) {
+        setError("Failed to load chats from backend");
+      }
+    } finally {
+      if (isFirstLoadRef.current) {
+        setLoading(false);
+      }
+    }
+  };
+
+  // Smart refresh - mirip WhatsApp (adaptive polling)
+  const { markActivity: markChatActivity } = useSmartRefresh({
+    onRefresh: loadChats,
+    minInterval: 15000, // 15s saat aktif
+    maxInterval: 60000, // 60s saat idle
+    enabled: !!token && activeTab === "customer",
+  });
 
   const activeChat = chats.find((c) => c.id === activeChatId);
 
@@ -171,7 +152,9 @@ function DashboardContent() {
           chat.id === chatId
             ? {
                 ...chat,
-                messages: chat.messages.filter((m) => m.id !== optimisticMessage.id),
+                messages: chat.messages.filter(
+                  (m) => m.id !== optimisticMessage.id
+                ),
               }
             : chat
         )
@@ -185,7 +168,9 @@ function DashboardContent() {
 
     // Optimistic update
     setChats((prev) =>
-      prev.map((c) => (c.id === activeChatId ? { ...c, mode: "agent" as const } : c))
+      prev.map((c) =>
+        c.id === activeChatId ? { ...c, mode: "agent" as const } : c
+      )
     );
 
     // TODO: Call backend API to update chat mode
@@ -207,7 +192,14 @@ function DashboardContent() {
 
   // ================= AGENT/ADMIN SEND MESSAGE =================
   const handleSendMessage = async (text: string) => {
-    if (!activeChat || activeChat.mode !== "agent" || !token || !user || !activeChatId) return;
+    if (
+      !activeChat ||
+      activeChat.mode !== "agent" ||
+      !token ||
+      !user ||
+      !activeChatId
+    )
+      return;
 
     // Optimistic update
     const optimisticMessage = {
@@ -244,6 +236,9 @@ function DashboardContent() {
         token
       );
       console.log("Message sent successfully to backend");
+
+      // Mark activity untuk trigger fast refresh
+      markChatActivity();
     } catch (err) {
       console.error("Failed to send message:", err);
       // Revert on error
@@ -252,7 +247,9 @@ function DashboardContent() {
           chat.id === activeChatId
             ? {
                 ...chat,
-                messages: chat.messages.filter((m) => m.id !== optimisticMessage.id),
+                messages: chat.messages.filter(
+                  (m) => m.id !== optimisticMessage.id
+                ),
               }
             : chat
         )
@@ -356,12 +353,97 @@ function DashboardContent() {
     }
   };
 
+  // ================= LOAD AGENTS =================
+  useEffect(() => {
+    async function loadAgents() {
+      if (!token) return;
+      try {
+        const agentData = await getAgentList(token);
+        setAgents(agentData);
+      } catch (err) {
+        console.error("Failed to load agents:", err);
+      }
+    }
+    loadAgents();
+  }, [token]);
+
+  // ================= LOAD ADMIN CHAT =================
+  const loadAdminChat = async () => {
+    // Skip jika tab tidak aktif atau tidak ada agent yang dipilih
+    if (!activeAgentId || activeTab !== "agent") return;
+
+    try {
+      const adminChatData = await getAdminChat(activeAgentId);
+      setAdminChat(transformAdminChatResponse(adminChatData));
+    } catch (err) {
+      console.error("Failed to load admin chat:", err);
+    }
+  };
+
+  // Smart refresh untuk admin chat - mirip WhatsApp
+  const { markActivity: markAdminChatActivity } = useSmartRefresh({
+    onRefresh: loadAdminChat,
+    minInterval: 10000, // 10s saat aktif (lebih cepat karena chat internal)
+    maxInterval: 45000, // 45s saat idle
+    enabled: !!activeAgentId && activeTab === "agent",
+  });
+
+  // ================= HANDLE MODE CHANGE =================
+  const handleModeChange = async (mode: "bot" | "manual") => {
+    if (!activeAgentId) return;
+
+    // Update local state immediately
+    setAdminChat((prev) => ({
+      ...prev,
+      mode,
+    }));
+  };
+
+  // ================= SEND ADMIN MESSAGE =================
+  const handleSendAdminMessage = async (text: string) => {
+    if (!user || !activeAgentId) return;
+
+    try {
+      const newMessage = await sendAdminMessage(
+        activeAgentId,
+        text,
+        user.name,
+        "admin",
+        adminChat.mode
+      );
+
+      setAdminChat((prev) => ({
+        ...prev,
+        messages: [
+          ...prev.messages,
+          {
+            id: newMessage.id,
+            text: newMessage.text,
+            sender: newMessage.sender,
+            time: newMessage.time,
+            status: newMessage.status,
+          },
+        ],
+      }));
+
+      // Mark activity untuk trigger fast refresh
+      markAdminChatActivity();
+    } catch (err) {
+      console.error("Failed to send admin message:", err);
+      alert("Failed to send message to agent");
+    }
+  };
+
+  const activeAgent = agents.find((a) => a.id === activeAgentId);
+
   // Loading state
   if (loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-slate-50">
         <div className="text-center">
-          <div className="text-lg font-semibold text-neutral-900">Loading...</div>
+          <div className="text-lg font-semibold text-neutral-900">
+            Loading...
+          </div>
           <div className="text-sm text-neutral-500">Fetching all chats</div>
         </div>
       </div>
@@ -386,30 +468,40 @@ function DashboardContent() {
     );
   }
 
-  // No chats state
-  if (chats.length === 0) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-slate-50">
-        <div className="text-center">
-          <div className="text-lg font-semibold text-neutral-900">No Chats</div>
-          <div className="text-sm text-neutral-500">No chats available yet</div>
-        </div>
-      </div>
-    );
-  }
-
-  // No active chat selected
-  if (!activeChat) {
-    return null;
-  }
-
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-slate-50">
-      {/* Logout Button - Top Right */}
-      <div className="absolute top-4 right-4 z-50">
+    <div className="flex flex-col h-screen w-full overflow-hidden bg-slate-50">
+      {/* Top Bar with Tab Switcher */}
+      <div className="flex items-center justify-between px-6 py-3 bg-white border-b border-neutral-200">
+        {/* Tab Switcher */}
+        <div className="flex gap-1 bg-neutral-100 rounded-lg p-1">
+          <button
+            onClick={() => setActiveTab("customer")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${
+              activeTab === "customer"
+                ? "bg-white text-neutral-900 shadow-sm"
+                : "text-neutral-600 hover:text-neutral-900"
+            }`}
+          >
+            <MessageSquare className="h-4 w-4" />
+            <span className="text-sm font-medium">Agent Chats</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("agent")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${
+              activeTab === "agent"
+                ? "bg-white text-neutral-900 shadow-sm"
+                : "text-neutral-600 hover:text-neutral-900"
+            }`}
+          >
+            <Users className="h-4 w-4" />
+            <span className="text-sm font-medium">Internal Chat</span>
+          </button>
+        </div>
+
+        {/* Logout Button */}
         <button
           onClick={logout}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-neutral-900 text-white hover:bg-red-600 transition-all shadow-lg"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-neutral-900 text-white hover:bg-red-600 transition-all"
           title="Logout"
         >
           <LogOut className="h-4 w-4" />
@@ -417,50 +509,98 @@ function DashboardContent() {
         </button>
       </div>
 
-      <div
-        className={`grid flex-1 min-w-0 h-full transition-all duration-300 ${
-          showCustomer
-            ? "grid-cols-[minmax(240px,320px)_1fr_minmax(280px,360px)]"
-            : "grid-cols-[minmax(240px,320px)_1fr]"
-        }`}
-      >
-        {/* Chat List */}
-        <ChatList
-          chats={chats}
-          activeChatId={activeChatId}
-          onSelectChat={(chat) => {
-            setActiveChatId(chat.id);
-            setShowCustomer(true);
-          }}
-          onDeleteChat={handleDeleteChat}
-          isSelectMode={isSelectMode}
-          selectedChats={selectedChats}
-          onToggleSelectMode={handleToggleSelectMode}
-          onToggleChatSelection={handleToggleChatSelection}
-          onBulkDelete={handleBulkDelete}
-          onSelectAll={handleSelectAll}
-        />
-
-        {/* Chat Window */}
-        <ChatWindow
-          chat={activeChat}
-          onSendMessage={handleSendMessage}
-          onAssignAgent={assignToAgent}
-          onPauseChat={handlePauseChat}
-          onCustomerMessage={(text) =>
-            handleCustomerMessage(activeChatId!, text)
-          }
-          onOpenCustomer={() => setShowCustomer(true)}
-        />
-
-        {/* Customer Detail */}
-        {showCustomer && (
-          <CustomerDetail
-            chat={activeChat}
-            onClose={() => setShowCustomer(false)}
+      {/* Customer Chats View */}
+      {activeTab === "customer" ? (
+        <div
+          className={`grid flex-1 min-w-0 h-full transition-all duration-300 ${
+            showCustomer
+              ? "grid-cols-[minmax(240px,320px)_1fr_minmax(280px,360px)]"
+              : "grid-cols-[minmax(240px,320px)_1fr]"
+          }`}
+        >
+          {/* Chat List */}
+          <ChatList
+            chats={chats}
+            activeChatId={activeChatId}
+            onSelectChat={(chat) => {
+              setActiveChatId(chat.id);
+              setShowCustomer(true);
+            }}
+            onDeleteChat={handleDeleteChat}
+            isSelectMode={isSelectMode}
+            selectedChats={selectedChats}
+            onToggleSelectMode={handleToggleSelectMode}
+            onToggleChatSelection={handleToggleChatSelection}
+            onBulkDelete={handleBulkDelete}
+            onSelectAll={handleSelectAll}
           />
-        )}
-      </div>
+
+          {activeChat ? (
+            <>
+              {/* Chat Window */}
+              <ChatWindow
+                chat={activeChat}
+                onSendMessage={handleSendMessage}
+                onAssignAgent={assignToAgent}
+                onPauseChat={handlePauseChat}
+                onCustomerMessage={(text) =>
+                  handleCustomerMessage(activeChatId!, text)
+                }
+                onOpenCustomer={() => setShowCustomer(true)}
+              />
+
+              {/* Customer Detail */}
+              {showCustomer && (
+                <CustomerDetail
+                  chat={activeChat}
+                  onClose={() => setShowCustomer(false)}
+                />
+              )}
+            </>
+          ) : (
+            <div className="flex items-center justify-center col-span-2">
+              <div className="text-center">
+                <div className="text-lg font-semibold text-neutral-900">No Chat Selected</div>
+                <div className="text-sm text-neutral-500 mt-2">
+                  {chats.length === 0 ? "No chats available yet" : "Select a chat from the list"}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Agent Chats View */
+        <div className="grid flex-1 min-w-0 h-full grid-cols-[minmax(240px,320px)_1fr]">
+          {/* Agent List */}
+          <AgentList
+            agents={agents}
+            activeAgentId={activeAgentId}
+            onSelectAgent={(agent) => setActiveAgentId(agent.id)}
+          />
+
+          {activeAgent ? (
+            <AdminAgentChatWindow
+              agent={activeAgent}
+              adminChat={adminChat}
+              onSendMessage={handleSendAdminMessage}
+              onModeChange={handleModeChange}
+            />
+          ) : (
+            <div className="flex items-center justify-center">
+              <div className="text-center">
+                <div className="text-lg font-semibold text-neutral-900">
+                  No Agent Selected
+                </div>
+                <div className="text-sm text-neutral-500 mt-2">
+                  {agents.length === 0
+                    ? "No agents available"
+                    : "Select an agent to start chatting"}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

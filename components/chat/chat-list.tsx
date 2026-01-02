@@ -155,17 +155,14 @@ function ChatList({
               >
                 {/* Checkbox untuk Select Mode */}
                 {isSelectMode && (
-                  <div
-                    className="flex items-center"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onToggleChatSelection?.(chat.id);
-                    }}
-                  >
+                  <div className="flex items-center">
                     <input
                       type="checkbox"
                       checked={isSelected}
-                      onChange={() => onToggleChatSelection?.(chat.id)}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        onToggleChatSelection?.(chat.id);
+                      }}
                       className="h-4 w-4 rounded border-neutral-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                     />
                   </div>

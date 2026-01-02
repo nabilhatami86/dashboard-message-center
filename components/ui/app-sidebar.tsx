@@ -1,18 +1,20 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+// import { useRouter } from "next/navigation";
 import {
   Inbox,
   UserCheck,
   Clock,
-  LogOut,
+  // LogOut,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
 import { Button } from "./button";
 import { Chat } from "@/app/dashboard-admin/types";
 import { useAuthStore } from "@/store/authStore";
+import { getChats } from "@/lib/api";
+import { transformChatResponse } from "@/lib/transform";
 
 interface SidebarProps {
   chats?: Chat[];
@@ -22,22 +24,38 @@ interface SidebarProps {
 type MenuKey = "all" | "assigned" | "unassigned";
 
 export default function SimpleSidebar({
-  chats = [],
   onSelectFilter,
 }: SidebarProps) {
-  const router = useRouter();
-  const logout = useAuthStore((state) => state.logout);
+  // const router = useRouter();
+  const token = useAuthStore((state) => state.token);
 
   const [active, setActive] = useState<MenuKey>("all");
   const [open, setOpen] = useState(true);
+  const [chats, setChats] = useState<Chat[]>([]);
+
+  // Fetch chats dari backend
+  useEffect(() => {
+    async function fetchChats() {
+      if (!token) return;
+
+      try {
+        const chatData = await getChats(token);
+        const transformedChats = chatData.map(transformChatResponse) as Chat[];
+        setChats(transformedChats);
+      } catch (err) {
+        console.error("Failed to load chats in sidebar:", err);
+      }
+    }
+
+    fetchChats();
+    // Refresh setiap 15 detik
+    const interval = setInterval(fetchChats, 15000);
+    return () => clearInterval(interval);
+  }, [token]);
 
   const countAll = chats.length;
-  const countAssigned = chats.filter((c) =>
-    c.messages.some((m) => m.status === "read")
-  ).length;
-  const countUnassigned = chats.filter((c) =>
-    c.messages.every((m) => m.status !== "read")
-  ).length;
+  const countAssigned = chats.filter((c) => c.mode === "agent").length;
+  const countUnassigned = chats.filter((c) => c.mode === "bot").length;
 
   const menuItems = [
     {
@@ -65,10 +83,10 @@ export default function SimpleSidebar({
     onSelectFilter?.(key);
   };
 
-  const handleLogout = () => {
-    logout();
-    router.replace("/login");
-  };
+  // const handleLogout = () => {
+  //   logout();
+  //   router.replace("/login");
+  // };
 
   return (
     <aside
@@ -141,7 +159,7 @@ export default function SimpleSidebar({
       </div>
 
       {/* Logout */}
-      <div className="border-t border-white/10 p-4">
+      {/* <div className="border-t border-white/10 p-4">
         <button
           onClick={handleLogout}
           className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-white/70 hover:bg-white/5 transition-colors"
@@ -149,7 +167,7 @@ export default function SimpleSidebar({
           <LogOut className="h-5 w-5" />
           {open && <span className="text-sm">Logout</span>}
         </button>
-      </div>
+      </div> */}
     </aside>
   );
 }

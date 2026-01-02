@@ -11,10 +11,21 @@ export interface LoginResponse {
     name: string;
     username: string;
     email: string;
+    phone?: string;
     role: "admin" | "agent";
   };
   access_token: string;
   token_type: string;
+}
+
+export interface AdminUser {
+  id: number;
+  name: string;
+  email: string;
+  phone?: string;
+  username: string;
+  role: "admin";
+  online?: boolean;
 }
 
 export async function login(username: string, password: string): Promise<LoginResponse> {
@@ -198,6 +209,7 @@ export async function deleteMessage(messageId: number, token: string): Promise<v
 // =====================
 export interface AdminChatResponse {
   id: number;
+  mode: "bot" | "manual";
   messages: AdminMessageResponse[];
 }
 
@@ -210,44 +222,158 @@ export interface AdminMessageResponse {
   sender_name?: string;
 }
 
-// Untuk sementara menggunakan localStorage sampai backend support admin chat
+// Get admin chat messages from backend
 export async function getAdminChat(agentId: number): Promise<AdminChatResponse> {
-  // TODO: Implement backend endpoint untuk admin chat
-  const stored = localStorage.getItem(`admin_chat_${agentId}`);
-  if (stored) {
-    return JSON.parse(stored);
-  }
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin-chat/${agentId}`, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
 
-  return {
-    id: agentId,
-    messages: [],
-  };
+    if (!response.ok) {
+      console.warn("Failed to fetch admin chat from backend");
+      return {
+        id: agentId,
+        mode: "bot",
+        messages: [],
+      };
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("Error fetching admin chat:", error);
+    return {
+      id: agentId,
+      mode: "bot",
+      messages: [],
+    };
+  }
 }
 
 export async function sendAdminMessage(
   agentId: number,
   text: string,
-  senderName: string
+  senderName: string,
+  sender: "agent" | "admin" = "agent",
+  mode: "bot" | "manual" = "bot"
 ): Promise<AdminMessageResponse> {
-  // TODO: Implement backend endpoint untuk admin chat
-  const chat = await getAdminChat(agentId);
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin-chat/${agentId}/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        text,
+        sender,
+        sender_name: senderName,
+        mode,
+      }),
+    });
 
-  const newMessage: AdminMessageResponse = {
-    id: Date.now(),
-    text,
-    sender: "agent",
-    time: new Date().toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
-    status: "sent",
-    sender_name: senderName,
-  };
+    if (!response.ok) {
+      throw new Error("Failed to send admin message");
+    }
 
-  chat.messages.push(newMessage);
-  localStorage.setItem(`admin_chat_${agentId}`, JSON.stringify(chat));
+    return response.json();
+  } catch (error) {
+    console.error("Error sending admin message:", error);
+    throw error;
+  }
+}
 
-  return newMessage;
+// =====================
+// ADMIN/AGENT LIST API
+// =====================
+export async function getAdminList(token: string): Promise<AdminUser[]> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/users/admins`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      console.warn("Failed to fetch admin list from backend, using mock data");
+      // Fallback ke mock data jika endpoint belum ada
+      return getMockAdminList();
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("Error fetching admin list:", error);
+    // Fallback ke mock data
+    return getMockAdminList();
+  }
+}
+
+export interface AgentUser {
+  id: number;
+  name: string;
+  email: string;
+  phone?: string;
+  username: string;
+  role: "agent";
+  online?: boolean;
+}
+
+export async function getAgentList(token: string): Promise<AgentUser[]> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/users/agents`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      console.warn("Failed to fetch agent list from backend, using mock data");
+      return getMockAgentList();
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("Error fetching agent list:", error);
+    return getMockAgentList();
+  }
+}
+
+function getMockAgentList(): AgentUser[] {
+  return [
+    {
+      id: 2,
+      name: "Agent User",
+      email: "agent@example.com",
+      phone: "081234567890",
+      username: "agent",
+      role: "agent",
+      online: true,
+    },
+  ];
+}
+
+// Mock admin list untuk development
+function getMockAdminList(): AdminUser[] {
+  return [
+    {
+      id: 1,
+      name: "Admin Utama",
+      email: "admin@example.com",
+      phone: "087731624016",
+      username: "admin",
+      role: "admin",
+      online: true,
+    },
+    {
+      id: 2,
+      name: "Admin Support",
+      email: "support@example.com",
+      phone: "087731624016",
+      username: "admin_support",
+      role: "admin",
+      online: false,
+    },
+  ];
 }
 
 // =====================

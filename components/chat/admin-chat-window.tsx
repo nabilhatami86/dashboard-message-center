@@ -5,8 +5,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Send, Paperclip, CheckCheck, Check, ShieldCheck } from "lucide-react";
+import { Send, Paperclip, CheckCheck, Check, ShieldCheck, User, Users, UserCog } from "lucide-react";
 import { AdminChat, Message } from "@/app/types/types";
+import { useAuthStore } from "@/store/authStore";
+import { getAdminList, AdminUser, getAgentList, AgentUser } from "@/lib/api";
 
 interface Props {
   adminChat: AdminChat;
@@ -18,11 +20,46 @@ export default function AdminChatWindow({
   onSendMessage,
 }: Props) {
   const [message, setMessage] = useState("");
+  const [showProfile, setShowProfile] = useState(false);
+  const [showAdminList, setShowAdminList] = useState(false);
+  const [showAgentList, setShowAgentList] = useState(false);
+  const [adminList, setAdminList] = useState<AdminUser[]>([]);
+  const [agentList, setAgentList] = useState<AgentUser[]>([]);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const user = useAuthStore((state) => state.user);
+  const token = useAuthStore((state) => state.token);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [adminChat.messages.length]);
+
+  // Load admin list
+  useEffect(() => {
+    async function loadAdminList() {
+      if (!token) return;
+      try {
+        const admins = await getAdminList(token);
+        setAdminList(admins);
+      } catch (error) {
+        console.error("Failed to load admin list:", error);
+      }
+    }
+    loadAdminList();
+  }, [token]);
+
+  // Load agent list
+  useEffect(() => {
+    async function loadAgentList() {
+      if (!token) return;
+      try {
+        const agents = await getAgentList(token);
+        setAgentList(agents);
+      } catch (error) {
+        console.error("Failed to load agent list:", error);
+      }
+    }
+    loadAgentList();
+  }, [token]);
 
   const handleSend = () => {
     if (!message.trim()) return;
@@ -50,7 +87,168 @@ export default function AdminChatWindow({
             </Badge>
           </div>
         </div>
+
+        {/* Agent Profile & Admin List Buttons */}
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowAgentList(!showAgentList)}
+            className="hover:bg-green-50"
+          >
+            <UserCog className="h-4 w-4 mr-1" />
+            List Agent
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowAdminList(!showAdminList)}
+            className="hover:bg-blue-50"
+          >
+            <Users className="h-4 w-4 mr-1" />
+            List Admin
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowProfile(!showProfile)}
+            className="hover:bg-blue-50"
+          >
+            <User className="h-4 w-4 mr-1" />
+            Profil Saya
+          </Button>
+        </div>
       </header>
+
+      {/* AGENT LIST */}
+      {showAgentList && (
+        <div className="border-b border-neutral-200 bg-green-50 px-6 py-4 max-h-80 overflow-y-auto">
+          <h3 className="text-sm font-semibold text-neutral-900 mb-3">Daftar Agent</h3>
+          <div className="space-y-2">
+            {agentList.map((agent) => (
+              <div key={agent.id} className="bg-white rounded-xl p-3 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarFallback className="bg-green-600 text-white font-semibold">
+                      {agent.name
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-sm text-neutral-900">{agent.name}</p>
+                      {agent.online && (
+                        <span className="h-2 w-2 rounded-full bg-green-500"></span>
+                      )}
+                    </div>
+                    <p className="text-xs text-neutral-500">@{agent.username}</p>
+                  </div>
+                </div>
+                <div className="mt-2 space-y-1 text-xs text-neutral-600 pl-13">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">📧</span>
+                    <span>{agent.email}</span>
+                  </div>
+                  {agent.phone && (
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">📱</span>
+                      <span>{agent.phone}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ADMIN LIST */}
+      {showAdminList && (
+        <div className="border-b border-neutral-200 bg-blue-50 px-6 py-4 max-h-80 overflow-y-auto">
+          <h3 className="text-sm font-semibold text-neutral-900 mb-3">Daftar Admin</h3>
+          <div className="space-y-2">
+            {adminList.map((admin) => (
+              <div key={admin.id} className="bg-white rounded-xl p-3 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarFallback className="bg-blue-600 text-white font-semibold">
+                      {admin.name
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-sm text-neutral-900">{admin.name}</p>
+                      {admin.online && (
+                        <span className="h-2 w-2 rounded-full bg-green-500"></span>
+                      )}
+                    </div>
+                    <p className="text-xs text-neutral-500">@{admin.username}</p>
+                  </div>
+                </div>
+                <div className="mt-2 space-y-1 text-xs text-neutral-600 pl-13">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">📧</span>
+                    <span>{admin.email}</span>
+                  </div>
+                  {admin.phone && (
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">📱</span>
+                      <span>{admin.phone}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* AGENT PROFILE CARD */}
+      {showProfile && user && (
+        <div className="border-b border-neutral-200 bg-blue-50 px-6 py-4">
+          <div className="bg-white rounded-xl p-4 shadow-sm">
+            <div className="flex items-center gap-3 mb-3">
+              <Avatar className="h-12 w-12">
+                <AvatarFallback className="bg-neutral-800 text-white font-semibold text-lg">
+                  {user.name
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="font-semibold text-neutral-900">{user.name}</p>
+                <Badge className="mt-1 bg-green-100 text-green-700 text-[10px]">
+                  {user.role.toUpperCase()}
+                </Badge>
+              </div>
+            </div>
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center gap-2 text-neutral-600">
+                <span className="font-medium">Email:</span>
+                <span>{user.email}</span>
+              </div>
+              <div className="flex items-center gap-2 text-neutral-600">
+                <span className="font-medium">Nomor:</span>
+                <span>{user.phone || "-"}</span>
+              </div>
+              <div className="flex items-center gap-2 text-neutral-600">
+                <span className="font-medium">Username:</span>
+                <span>@{user.username}</span>
+              </div>
+              <div className="flex items-center gap-2 text-neutral-600">
+                <span className="font-medium">ID Agent:</span>
+                <span>#{user.id}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MESSAGES */}
       <ScrollArea className="flex-1 min-h-0 bg-neutral-50">

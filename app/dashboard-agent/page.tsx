@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useRef } from "react";
 import ChatList from "@/components/chat/chat-list";
 import ChatWindowAgent from "@/components/chat/chat-window-agent";
 import AdminChatWindow from "@/components/chat/admin-chat-window";
@@ -15,14 +15,22 @@ import {
   getAdminChat,
   sendAdminMessage,
 } from "@/lib/api";
-import { transformChatResponse, transformAdminChatResponse } from "@/lib/transform";
+import {
+  transformChatResponse,
+  transformAdminChatResponse,
+} from "@/lib/transform";
+import { useSmartRefresh } from "@/hooks/useSmartRefresh";
 
 function DashboardAgentContent() {
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChatId, setActiveChatId] = useState<number | null>(null);
   const [showCustomer, setShowCustomer] = useState(true);
   const [activeTab, setActiveTab] = useState<"customer" | "admin">("customer");
-  const [adminChat, setAdminChat] = useState<AdminChat>({ id: 0, messages: [] });
+  const [adminChat, setAdminChat] = useState<AdminChat>({
+    id: 0,
+    mode: "bot",
+    messages: [],
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,55 +38,101 @@ function DashboardAgentContent() {
   const token = useAuthStore((state) => state.token);
   const logout = useAuthStore((state) => state.logout);
 
+  const isFirstLoadRef = useRef(true);
+
   // Load chats from backend
-  useEffect(() => {
-    async function loadChats() {
-      if (!token) {
-        setError("Please login first");
-        setLoading(false);
-        return;
+  const loadChats = async () => {
+    if (!token) {
+      setError("Please login first");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // Only show loading on initial load, not on auto-refresh
+      const isFirstLoad = isFirstLoadRef.current;
+      if (isFirstLoad) {
+        setLoading(true);
       }
 
-      try {
-        setLoading(true);
-        const chatData = await getChats(token);
-        const transformedChats = chatData.map(transformChatResponse);
-        setChats(transformedChats);
+      const chatData = await getChats(token);
+      const transformedChats = chatData.map(transformChatResponse);
 
-        if (transformedChats.length > 0 && !activeChatId) {
+      // Update chats with smart comparison to avoid unnecessary re-renders
+      setChats((prevChats) => {
+        // On first load, set active chat
+        if (isFirstLoad && transformedChats.length > 0 && !activeChatId) {
           setActiveChatId(transformedChats[0].id);
+          isFirstLoadRef.current = false;
         }
 
-        setError(null);
-      } catch (err) {
-        console.error("Failed to load chats:", err);
+        // Optimize: only update if there are actual changes
+        if (
+          prevChats.length === transformedChats.length &&
+          prevChats.length > 0
+        ) {
+          const hasChanges = transformedChats.some((newChat, idx) => {
+            const oldChat = prevChats[idx];
+            if (!oldChat) return true;
+            if (newChat.id !== oldChat.id) return true;
+            if (newChat.unread !== oldChat.unread) return true;
+            if (newChat.online !== oldChat.online) return true;
+            if (newChat.mode !== oldChat.mode) return true;
+            if (newChat.messages.length !== oldChat.messages.length)
+              return true;
+            return false;
+          });
+
+          if (!hasChanges) {
+            return prevChats; // No changes, keep same reference
+          }
+        }
+
+        return transformedChats;
+      });
+
+      setError(null);
+    } catch (err) {
+      console.error("Failed to load chats:", err);
+      if (isFirstLoadRef.current) {
         setError("Failed to load chats from backend");
-      } finally {
+      }
+    } finally {
+      if (isFirstLoadRef.current) {
         setLoading(false);
+        isFirstLoadRef.current = false;
       }
     }
+  };
 
-    loadChats();
-    // Refresh chats every 5 seconds for real-time updates
-    const interval = setInterval(loadChats, 5000);
-    return () => clearInterval(interval);
-  }, [token]);
+  // Smart refresh - mirip WhatsApp
+  const { markActivity: markChatActivity } = useSmartRefresh({
+    onRefresh: loadChats,
+    minInterval: 15000, // 15s saat aktif
+    maxInterval: 60000, // 60s saat idle
+    enabled: !!token && activeTab === "customer",
+  });
 
-  // Load admin chat
-  useEffect(() => {
-    async function loadAdminChat() {
-      if (!user) return;
+  // Load admin chat with auto-refresh
+  const loadAdminChat = async () => {
+    // Skip jika tidak ada user atau sedang di tab admin chat
+    if (!user || activeTab !== "admin") return;
 
-      try {
-        const adminChatData = await getAdminChat(user.id);
-        setAdminChat(transformAdminChatResponse(adminChatData));
-      } catch (err) {
-        console.error("Failed to load admin chat:", err);
-      }
+    try {
+      const adminChatData = await getAdminChat(user.id);
+      setAdminChat(transformAdminChatResponse(adminChatData));
+    } catch (err) {
+      console.error("Failed to load admin chat:", err);
     }
+  };
 
-    loadAdminChat();
-  }, [user?.id]);
+  // Smart refresh untuk admin chat
+  const { markActivity: markAdminChatActivity } = useSmartRefresh({
+    onRefresh: loadAdminChat,
+    minInterval: 10000, // 10s saat aktif
+    maxInterval: 45000, // 45s saat idle
+    enabled: !!user && activeTab === "admin",
+  });
 
   const activeChat = chats.find((c) => c.id === activeChatId);
 
@@ -122,6 +176,9 @@ function DashboardAgentContent() {
       );
       // Backend akan kirim pesan ke WhatsApp
       console.log("Message sent successfully to backend");
+
+      // Mark activity untuk trigger fast refresh
+      markChatActivity();
     } catch (err) {
       console.error("Failed to send message:", err);
       // Revert optimistic update if failed
@@ -130,7 +187,9 @@ function DashboardAgentContent() {
           chat.id === activeChatId
             ? {
                 ...chat,
-                messages: chat.messages.filter((m) => m.id !== optimisticMessage.id),
+                messages: chat.messages.filter(
+                  (m) => m.id !== optimisticMessage.id
+                ),
               }
             : chat
         )
@@ -144,7 +203,14 @@ function DashboardAgentContent() {
     if (!user) return;
 
     try {
-      const newMessage = await sendAdminMessage(user.id, text, user.name);
+      // Pass "agent" as the sender parameter and adminChat.mode
+      const newMessage = await sendAdminMessage(
+        user.id,
+        text,
+        user.name,
+        "agent",
+        adminChat.mode
+      );
 
       setAdminChat((prev) => ({
         ...prev,
@@ -159,6 +225,9 @@ function DashboardAgentContent() {
           },
         ],
       }));
+
+      // Mark activity untuk trigger fast refresh
+      markAdminChatActivity();
     } catch (err) {
       console.error("Failed to send admin message:", err);
       alert("Failed to send message to admin");
@@ -170,7 +239,9 @@ function DashboardAgentContent() {
     return (
       <div className="flex h-full w-full items-center justify-center bg-slate-50">
         <div className="text-center">
-          <div className="text-lg font-semibold text-neutral-900">Loading...</div>
+          <div className="text-lg font-semibold text-neutral-900">
+            Loading...
+          </div>
           <div className="text-sm text-neutral-500">Fetching your chats</div>
         </div>
       </div>
@@ -196,21 +267,21 @@ function DashboardAgentContent() {
   }
 
   // No chats state
-  if (chats.length === 0) {
-    return (
-      <div className="flex h-full w-full items-center justify-center bg-slate-50">
-        <div className="text-center">
-          <div className="text-lg font-semibold text-neutral-900">No Chats</div>
-          <div className="text-sm text-neutral-500">No chats assigned to you yet</div>
-        </div>
-      </div>
-    );
-  }
+  // if (chats.length === 0) {
+  //   return (
+  //     <div className="flex h-full w-full items-center justify-center bg-slate-50">
+  //       <div className="text-center">
+  //         <div className="text-lg font-semibold text-neutral-900">No Chats</div>
+  //         <div className="text-sm text-neutral-500">No chats assigned to you yet</div>
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
-  // No active chat selected
-  if (!activeChat) {
-    return null;
-  }
+  // // No active chat selected
+  // if (!activeChat) {
+  //   return null;
+  // }
 
   return (
     <div className="flex h-full w-full overflow-hidden bg-slate-50">
@@ -279,29 +350,50 @@ function DashboardAgentContent() {
               }}
             />
 
-            {/* CHAT WINDOW */}
-            <ChatWindowAgent
-              chat={activeChat}
-              onSendMessage={handleSendMessage}
-              onOpenCustomer={() => setShowCustomer(true)}
-            />
+            {/* CHAT WINDOW & CUSTOMER DETAIL */}
+            {activeChat ? (
+              <>
+                <ChatWindowAgent
+                  chat={activeChat}
+                  onSendMessage={handleSendMessage}
+                  onEndChat={(mode) => {
+                    // Update chat mode to closed
+                    setChats((prev) =>
+                      prev.map((c) =>
+                        c.id === activeChatId ? { ...c, mode } : c
+                      )
+                    );
+                  }}
+                  onOpenCustomer={() => setShowCustomer(true)}
+                />
 
-            {/* CUSTOMER DETAIL */}
-            {showCustomer && (
-              <CustomerDetail
-                chat={activeChat}
-                onClose={() => setShowCustomer(false)}
-              />
+                {/* CUSTOMER DETAIL */}
+                {showCustomer && (
+                  <CustomerDetail
+                    chat={activeChat}
+                    onClose={() => setShowCustomer(false)}
+                  />
+                )}
+              </>
+            ) : (
+              <div className="flex items-center justify-center col-span-2">
+                <div className="text-center">
+                  <div className="text-lg font-semibold text-neutral-900">
+                    No Chat Selected
+                  </div>
+                  <div className="text-sm text-neutral-500 mt-2">
+                    Select a chat from the list to start
+                  </div>
+                </div>
+              </div>
             )}
           </>
         ) : (
-          <>
-            {/* ADMIN CHAT WINDOW */}
-            <AdminChatWindow
-              adminChat={adminChat}
-              onSendMessage={handleSendAdminMessage}
-            />
-          </>
+          /* ADMIN CHAT WINDOW */
+          <AdminChatWindow
+            adminChat={adminChat}
+            onSendMessage={handleSendAdminMessage}
+          />
         )}
       </div>
     </div>

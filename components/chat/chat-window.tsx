@@ -18,8 +18,6 @@ import {
   Paperclip,
   MoreVertical,
   UserPlus,
-  Pause,
-  Play,
   Check,
   CheckCheck,
   ChevronDown,
@@ -51,7 +49,6 @@ function ChatWindow({
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
-  const lastModeRef = useRef<ChatMode>("bot");
 
   /** mode aman (fallback) */
   const mode: ChatMode = chat.mode ?? "bot";
@@ -104,21 +101,28 @@ function ChatWindow({
     setMessage("");
   };
 
-  const handlePauseToggle = () => {
-    if (isPaused) {
-      onPauseChat(lastModeRef.current);
-    } else {
-      lastModeRef.current = mode;
-      onPauseChat("paused");
+  const handleEndChat = () => {
+    if (window.confirm("Akhiri sesi chat ini? Customer akan kembali ke bot jika chat lagi.")) {
+      // Set ke closed untuk mengakhiri chat
+      onPauseChat("closed");
     }
   };
+
   const systemInfoText = (() => {
+    if (mode === "closed") {
+      return "✅ Sesi chat sudah selesai. Chat baru dari customer akan ditangani bot terlebih dahulu.";
+    }
+
     if (mode === "paused") {
-      return "Percakapan sedang dijeda. Pesan dari customer tetap masuk dan akan dibalas setelah chat dilanjutkan.";
+      return "⏸️ Chat sedang dijeda sementara.";
     }
 
     if (mode === "agent") {
-      return "Percakapan ini telah terhubung dengan admin.";
+      return "💬 Bot dinonaktifkan. Semua pesan ditangani oleh agent.";
+    }
+
+    if (mode === "bot") {
+      return "🤖 Chat sedang ditangani oleh bot. Klik Assign untuk mengambil alih percakapan.";
     }
 
     return null;
@@ -180,20 +184,12 @@ function ChatWindow({
           <Button
             size="sm"
             variant="outline"
-            onClick={handlePauseToggle}
-            disabled={isClosed}
+            onClick={handleEndChat}
+            disabled={isClosed || mode === "bot"}
+            className={isClosed ? "opacity-50" : ""}
           >
-            {isPaused ? (
-              <>
-                <Play className="h-4 w-4 mr-1" />
-                Resume
-              </>
-            ) : (
-              <>
-                <Pause className="h-4 w-4 mr-1" />
-                Pause
-              </>
-            )}
+            <X className="h-4 w-4 mr-1" />
+            {isClosed ? "Selesai" : "End Chat"}
           </Button>
 
           {/* SIMULASI CUSTOMER */}
@@ -239,6 +235,20 @@ function ChatWindow({
             <div className="flex justify-center">
               <div className="text-xs text-slate-600 bg-slate-100 border rounded-full px-4 py-1">
                 {systemInfoText}
+              </div>
+            </div>
+          )}
+
+          {/* NOTIFIKASI SESI SELESAI (jika chat closed) */}
+          {isClosed && (
+            <div className="flex justify-center my-6">
+              <div className="max-w-md text-center bg-green-50 border border-green-200 rounded-xl px-6 py-4">
+                <div className="text-green-800 font-semibold mb-2">
+                  ✅ Sesi Chat Berakhir
+                </div>
+                <p className="text-sm text-green-700">
+                  Terima kasih atas waktunya. Sesi chat telah selesai. Jika customer chat lagi, percakapan akan dimulai dari bot.
+                </p>
               </div>
             </div>
           )}
@@ -375,8 +385,10 @@ function ChatWindow({
               }
             }}
             placeholder={
-              isPaused
-                ? "Chat sedang di-pause"
+              isClosed
+                ? "Sesi chat sudah selesai. Chat baru dari customer akan mulai dari bot."
+                : isPaused
+                ? "Chat sedang dijeda sementara."
                 : !isAgent
                 ? "Assign ke agent untuk membalas"
                 : editingMessage

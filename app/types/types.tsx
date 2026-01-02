@@ -18,6 +18,7 @@ export interface Message {
   id: number;
   text: string;
   sender: MessageSender;
+  sender_name?: string;
   time: string;
   status?: MessageStatus;
 }
@@ -27,6 +28,7 @@ export interface Message {
  * ===================== */
 export interface AdminChat {
   id: number;
+  mode: "bot" | "manual";
   messages: Message[];
 }
 
