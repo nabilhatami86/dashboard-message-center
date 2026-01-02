@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, memo } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ interface CustomerDetailProps {
   onClose: () => void;
 }
 
-export default function CustomerDetail({ chat, onClose }: CustomerDetailProps) {
+function CustomerDetail({ chat, onClose }: CustomerDetailProps) {
   const [isFavorite, setIsFavorite] = useState(false);
 
   const profile = chat.profile ?? {};
@@ -136,6 +136,11 @@ export default function CustomerDetail({ chat, onClose }: CustomerDetailProps) {
     </aside>
   );
 }
+
+// Memo untuk mencegah re-render jika chat tidak berubah
+export default memo(CustomerDetail, (prevProps, nextProps) => {
+  return prevProps.chat === nextProps.chat;
+});
 
 function InfoItem({
   icon,

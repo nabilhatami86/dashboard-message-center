@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import ChatList from "@/components/chat/chat-list";
 import ChatWindow from "@/components/chat/chat-window";
 import CustomerDetail from "@/components/customer/customer-detail";
@@ -8,7 +8,7 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { Chat } from "@/app/types/types";
 import { LogOut } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
-import { getChats, sendMessage } from "@/lib/api";
+import { getChats, sendMessage, deleteChat } from "@/lib/api";
 import { transformChatResponse } from "@/lib/transform";
 
 function DashboardContent() {
@@ -18,9 +18,22 @@ function DashboardContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Select mode state - pindah ke parent agar tidak reset saat refresh
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedChats, setSelectedChats] = useState<Set<number>>(new Set());
+
   const user = useAuthStore((state) => state.user);
   const token = useAuthStore((state) => state.token);
   const logout = useAuthStore((state) => state.logout);
+
+  // Use ref to track first load - tidak trigger re-render
+  const isFirstLoadRef = useRef(true);
+  const isSelectModeRef = useRef(false);
+
+  // Update ref when isSelectMode changes
+  useEffect(() => {
+    isSelectModeRef.current = isSelectMode;
+  }, [isSelectMode]);
 
   // Load all chats from backend (Admin sees all chats)
   useEffect(() => {
@@ -32,27 +45,81 @@ function DashboardContent() {
       }
 
       try {
-        setLoading(true);
-        const chatData = await getChats(token);
-        const transformedChats = chatData.map(transformChatResponse);
-        setChats(transformedChats);
-
-        if (transformedChats.length > 0 && !activeChatId) {
-          setActiveChatId(transformedChats[0].id);
+        // Jangan tampilkan loading spinner saat background refresh
+        const isFirstLoad = isFirstLoadRef.current;
+        if (isFirstLoad) {
+          setLoading(true);
         }
 
+        const chatData = await getChats(token);
+        const transformedChats = chatData.map(transformChatResponse);
+
+        setChats((prevChats) => {
+          // PERBAIKAN: HANYA auto-select chat pertama pada first load
+          if (isFirstLoad && transformedChats.length > 0) {
+            setActiveChatId(transformedChats[0].id);
+            isFirstLoadRef.current = false;
+          }
+
+          // OPTIMASI: Deep comparison untuk menghindari unnecessary re-render
+          if (prevChats.length === transformedChats.length && prevChats.length > 0) {
+            // Check apakah ada perubahan di setiap chat
+            const hasChanges = transformedChats.some((newChat, idx) => {
+              const oldChat = prevChats[idx];
+
+              if (!oldChat) return true;
+
+              // Compare chat properties
+              if (newChat.id !== oldChat.id) return true;
+              if (newChat.name !== oldChat.name) return true;
+              if (newChat.online !== oldChat.online) return true;
+              if (newChat.unread !== oldChat.unread) return true;
+              if (newChat.mode !== oldChat.mode) return true;
+
+              // Compare messages
+              if (newChat.messages.length !== oldChat.messages.length) return true;
+
+              // Compare last message only (optimization)
+              const newLastMsg = newChat.messages.at(-1);
+              const oldLastMsg = oldChat.messages.at(-1);
+
+              if (newLastMsg?.id !== oldLastMsg?.id) return true;
+              if (newLastMsg?.text !== oldLastMsg?.text) return true;
+              if (newLastMsg?.status !== oldLastMsg?.status) return true;
+
+              return false;
+            });
+
+            if (!hasChanges) {
+              return prevChats; // Tidak ada perubahan, skip update
+            }
+          }
+
+          return transformedChats;
+        });
+
         setError(null);
+
+        // Set loading false setelah first load berhasil
+        if (isFirstLoad) {
+          setLoading(false);
+        }
       } catch (err) {
         console.error("Failed to load chats:", err);
         setError("Failed to load chats from backend");
-      } finally {
-        setLoading(false);
+        setLoading(false); // PENTING: Set loading false saat error
       }
     }
 
     loadChats();
-    // Refresh chats every 5 seconds for real-time updates
-    const interval = setInterval(loadChats, 5000);
+    // Refresh chats every 15 seconds (lebih lambat untuk UI yang smooth)
+    // Skip refresh jika dalam select mode
+    const interval = setInterval(() => {
+      if (!isSelectModeRef.current) {
+        loadChats();
+      }
+    }, 15000);
+
     return () => clearInterval(interval);
   }, [token]);
 
@@ -194,6 +261,101 @@ function DashboardContent() {
     }
   };
 
+  // ================= DELETE CHAT =================
+  const handleDeleteChat = async (chatId: number) => {
+    if (!token) return;
+
+    // Optimistic update - hapus dari UI dulu
+    setChats((prev) => prev.filter((c) => c.id !== chatId));
+
+    // Jika chat yang di-delete adalah chat aktif, reset ke null atau chat pertama
+    if (activeChatId === chatId) {
+      const remainingChats = chats.filter((c) => c.id !== chatId);
+      if (remainingChats.length > 0) {
+        setActiveChatId(remainingChats[0].id);
+      } else {
+        setActiveChatId(null);
+      }
+    }
+
+    // Delete dari backend
+    try {
+      await deleteChat(chatId, token);
+      console.log("Chat deleted successfully");
+    } catch (err) {
+      console.error("Failed to delete chat:", err);
+      alert("Failed to delete chat. Please try again.");
+      // Reload chats untuk restore data jika delete gagal
+      window.location.reload();
+    }
+  };
+
+  // ================= SELECT MODE HANDLERS =================
+  const handleToggleSelectMode = () => {
+    setIsSelectMode(!isSelectMode);
+    setSelectedChats(new Set()); // Clear selections when toggling mode
+  };
+
+  const handleToggleChatSelection = (chatId: number) => {
+    setSelectedChats((prev) => {
+      const newSelected = new Set(prev);
+      if (newSelected.has(chatId)) {
+        newSelected.delete(chatId);
+      } else {
+        newSelected.add(chatId);
+      }
+      return newSelected;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedChats.size === 0 || !token) return;
+
+    const confirmMessage = `Hapus ${selectedChats.size} chat yang dipilih?`;
+    if (!window.confirm(confirmMessage)) return;
+
+    // Simpan ID yang akan dihapus
+    const chatIdsToDelete = Array.from(selectedChats);
+
+    // Optimistic update - hapus semua sekaligus dari UI
+    setChats((prev) => prev.filter((c) => !selectedChats.has(c.id)));
+
+    // Reset active chat jika termasuk yang dihapus
+    if (activeChatId && selectedChats.has(activeChatId)) {
+      const remainingChats = chats.filter((c) => !selectedChats.has(c.id));
+      if (remainingChats.length > 0) {
+        setActiveChatId(remainingChats[0].id);
+      } else {
+        setActiveChatId(null);
+      }
+    }
+
+    // Clear selection dan exit select mode
+    setSelectedChats(new Set());
+    setIsSelectMode(false);
+
+    // Delete dari backend - parallel requests
+    try {
+      await Promise.all(
+        chatIdsToDelete.map((chatId) => deleteChat(chatId, token))
+      );
+      console.log(`Successfully deleted ${chatIdsToDelete.length} chats`);
+    } catch (err) {
+      console.error("Failed to delete chats:", err);
+      alert("Gagal menghapus beberapa chat. Halaman akan di-reload.");
+      // Reload untuk restore data jika ada yang gagal
+      window.location.reload();
+    }
+  };
+
+  const handleSelectAll = () => {
+    if (selectedChats.size === chats.length) {
+      setSelectedChats(new Set()); // Deselect all
+    } else {
+      setSelectedChats(new Set(chats.map((chat) => chat.id))); // Select all
+    }
+  };
+
   // Loading state
   if (loading) {
     return (
@@ -270,6 +432,13 @@ function DashboardContent() {
             setActiveChatId(chat.id);
             setShowCustomer(true);
           }}
+          onDeleteChat={handleDeleteChat}
+          isSelectMode={isSelectMode}
+          selectedChats={selectedChats}
+          onToggleSelectMode={handleToggleSelectMode}
+          onToggleChatSelection={handleToggleChatSelection}
+          onBulkDelete={handleBulkDelete}
+          onSelectAll={handleSelectAll}
         />
 
         {/* Chat Window */}

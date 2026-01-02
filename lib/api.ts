@@ -152,6 +152,47 @@ export async function markAsRead(chatId: number): Promise<void> {
   }
 }
 
+export async function deleteChat(chatId: number, token: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/chats/${chatId}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to delete chat");
+  }
+}
+
+export async function updateMessage(messageId: number, newText: string, token: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/chats/messages/${messageId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ text: newText }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to update message");
+  }
+}
+
+export async function deleteMessage(messageId: number, token: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/chats/messages/${messageId}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to delete message");
+  }
+}
+
 // =====================
 // ADMIN CHAT API (Internal Communication)
 // =====================
