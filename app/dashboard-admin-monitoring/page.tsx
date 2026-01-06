@@ -18,6 +18,7 @@ import {
   Clock,
   CheckCircle,
   TrendingUp,
+  Zap,
 } from "lucide-react";
 
 export default function AdminMonitoringPage() {
@@ -32,8 +33,8 @@ export default function AdminMonitoringPage() {
   const [tickets, setTickets] = useState<TicketResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAgent, setSelectedAgent] = useState<number | null>(null);
+  const [isVisible, setIsVisible] = useState(false);
 
-  // Initialize auth from localStorage on mount
   useEffect(() => {
     initialize();
   }, [initialize]);
@@ -50,9 +51,7 @@ export default function AdminMonitoringPage() {
     }
 
     const loadData = async () => {
-      if (!token) {
-        return;
-      }
+      if (!token) return;
 
       try {
         const [agentsData, statsData, ticketsData] = await Promise.all([
@@ -68,29 +67,23 @@ export default function AdminMonitoringPage() {
         const err = error as Error;
         console.error("Error loading monitoring data:", err);
 
-        // If 401 Unauthorized, token is invalid/expired - logout and redirect
         if (
           err.message?.includes("Failed to fetch") ||
           err.message?.includes("ticket")
         ) {
-          // Clear auth state
           logout();
-
-          // Show alert and redirect
-          alert(
-            "⚠️ Your session has expired.\n\nPlease login again to continue."
-          );
+          alert("⚠️ Your session has expired.\n\nPlease login again to continue.");
           router.push("/login");
           return;
         }
       } finally {
         setLoading(false);
+        setTimeout(() => setIsVisible(true), 50);
       }
     };
 
     loadData();
-    const interval = setInterval(loadData, 10000); // Refresh every 10s
-
+    const interval = setInterval(loadData, 10000);
     return () => clearInterval(interval);
   }, [router, token, user, logout]);
 
@@ -114,21 +107,30 @@ export default function AdminMonitoringPage() {
     ? tickets.filter((t) => t.assigned_agent_id === selectedAgent)
     : tickets;
 
-  // Calculate percentages for progress visualization
-  const totalTickets = tickets.length || 1;
+  // Calculate total from all status counts (more accurate than tickets.length)
+  const totalTickets =
+    (stats?.total_pending || 0) +
+    (stats?.total_in_progress || 0) +
+    (stats?.total_waiting_customer || 0) +
+    (stats?.total_resolved || 0) +
+    (stats?.total_assigned || 0) || 1;
+
   const pendingPercent = ((stats?.total_pending || 0) / totalTickets) * 100;
   const inProgressPercent = ((stats?.total_in_progress || 0) / totalTickets) * 100;
-  const resolvedPercent = ((stats?.total_resolved_today || 0) / totalTickets) * 100;
+  const resolvedPercent = ((stats?.total_resolved || 0) / totalTickets) * 100;
   const waitingPercent = ((stats?.total_waiting_customer || 0) / totalTickets) * 100;
 
   if (loading) {
     return (
       <div className="flex h-screen w-full">
         <SimpleSidebar />
-        <div className="flex-1 bg-gray-50 flex items-center justify-center">
+        <div className="flex-1 bg-gradient-to-br from-slate-50 via-white to-slate-50 flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading dashboard...</p>
+            <div className="relative">
+              <div className="animate-spin rounded-full h-16 w-16 border-4 border-slate-200 border-t-blue-500 mx-auto"></div>
+              <div className="absolute inset-0 rounded-full bg-blue-500/10 blur-xl animate-pulse"></div>
+            </div>
+            <p className="mt-6 text-slate-600 font-medium">Loading dashboard...</p>
           </div>
         </div>
       </div>
@@ -136,344 +138,182 @@ export default function AdminMonitoringPage() {
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-slate-50">
-      {/* Sidebar */}
+    <div className="flex h-screen w-full overflow-hidden bg-gradient-to-br from-slate-50 via-white to-slate-50">
       <SimpleSidebar />
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="bg-white shadow flex-shrink-0">
-          <div className="px-6 py-6">
-            <div className="flex justify-between items-center">
+        {/* Premium Header */}
+        <div className={`bg-white/80 backdrop-blur-xl border-b border-slate-200/60 flex-shrink-0 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+          <div className="px-8 py-8">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg shadow-blue-500/25">
+                <Activity className="w-6 h-6 text-white" />
+              </div>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">
-                  Agent Monitoring Dashboard
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+                  Agent Performance Monitor
                 </h1>
-                <p className="mt-1 text-sm text-gray-500">
-                  Real-time agent performance and ticket overview
+                <p className="text-sm text-slate-500 font-medium mt-0.5">
+                  Real-time insights • Updates every 10s
                 </p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Scrollable Content Area */}
+        {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto">
-          <div className="px-6 py-8">
-        {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatCard
-            icon={<Users className="w-6 h-6" />}
-            title="Total Agents"
-            value={agents.length}
-            color="blue"
-          />
-          <StatCard
-            icon={<Activity className="w-6 h-6" />}
-            title="Pending in Queue"
-            value={stats?.total_pending || 0}
-            color="yellow"
-          />
-          <StatCard
-            icon={<Clock className="w-6 h-6" />}
-            title="In Progress"
-            value={stats?.total_in_progress || 0}
-            color="orange"
-          />
-          <StatCard
-            icon={<CheckCircle className="w-6 h-6" />}
-            title="Resolved Today"
-            value={stats?.total_resolved_today || 0}
-            color="green"
-          />
-        </div>
+          <div className="px-8 py-8 max-w-[1600px] mx-auto space-y-8">
 
-        {/* Performance Metrics */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold mb-4 flex items-center">
-              <TrendingUp className="w-5 h-5 mr-2" />
-              Average Response Time
-            </h2>
-            <div className="text-3xl font-bold text-blue-600">
-              {formatTime(stats?.avg_wait_time_seconds)}
+            {/* KPI Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[
+                { icon: Users, title: "Total Agents", value: agents.length, color: "blue", delay: 0 },
+                { icon: Zap, title: "Pending Queue", value: stats?.total_pending || 0, color: "amber", delay: 100 },
+                { icon: Activity, title: "In Progress", value: stats?.total_in_progress || 0, color: "purple", delay: 200 },
+                { icon: CheckCircle, title: "Resolved", value: stats?.total_resolved || 0, color: "emerald", delay: 300 },
+              ].map((card, idx) => (
+                <StatCard key={idx} {...card} isVisible={isVisible} />
+              ))}
             </div>
-            <p className="text-sm text-gray-500 mt-2">
-              Time from ticket creation to assignment
-            </p>
-          </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold mb-4 flex items-center">
-              <Clock className="w-5 h-5 mr-2" />
-              Average Resolution Time
-            </h2>
-            <div className="text-3xl font-bold text-green-600">
-              {formatTime(stats?.avg_resolution_time_seconds)}
+            {/* Performance Metrics */}
+            <div className={`grid grid-cols-1 lg:grid-cols-2 gap-6 transition-all duration-700 delay-400 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+              <MetricCard
+                icon={<TrendingUp className="w-5 h-5" />}
+                title="Avg Response Time"
+                value={formatTime(stats?.avg_wait_time_seconds)}
+                subtitle="From creation to assignment"
+                color="blue"
+              />
+              <MetricCard
+                icon={<Clock className="w-5 h-5" />}
+                title="Avg Resolution Time"
+                value={formatTime(stats?.avg_resolution_time_seconds)}
+                subtitle="From creation to resolution"
+                color="emerald"
+              />
             </div>
-            <p className="text-sm text-gray-500 mt-2">
-              Time from creation to resolution
-            </p>
-          </div>
-        </div>
 
-        {/* Ticket Status Distribution */}
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
-          <h2 className="text-lg font-semibold mb-6">Ticket Status Distribution</h2>
-          <div className="space-y-4">
-            {/* Pending */}
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium text-gray-700">Pending</span>
-                <span className="text-sm text-gray-600">
-                  {stats?.total_pending || 0} ({Math.round(pendingPercent)}%)
-                </span>
+            {/* Progress Distribution */}
+            <div className={`bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-slate-200/60 p-8 transition-all duration-700 delay-500 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+              <h2 className="text-lg font-semibold text-slate-800 mb-6">Ticket Status Distribution</h2>
+              <div className="space-y-5">
+                <ProgressBar label="Pending" value={stats?.total_pending || 0} percent={pendingPercent} color="amber" />
+                <ProgressBar label="In Progress" value={stats?.total_in_progress || 0} percent={inProgressPercent} color="blue" />
+                <ProgressBar label="Waiting Customer" value={stats?.total_waiting_customer || 0} percent={waitingPercent} color="orange" />
+                <ProgressBar label="Resolved" value={stats?.total_resolved || 0} percent={resolvedPercent} color="emerald" />
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                <div
-                  className="bg-yellow-500 h-3 rounded-full transition-all duration-500"
-                  style={{ width: `${pendingPercent}%` }}
-                ></div>
+
+              <div className="mt-8 pt-6 border-t border-slate-200/60">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                  <SummaryItem label="Total Tickets" value={totalTickets} color="slate" />
+                  <SummaryItem label="Active" value={stats?.total_in_progress || 0} color="blue" />
+                  <SummaryItem label="Resolved" value={stats?.total_resolved || 0} color="emerald" />
+                  <SummaryItem label="Pending" value={stats?.total_pending || 0} color="amber" />
+                </div>
               </div>
             </div>
 
-            {/* In Progress */}
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium text-gray-700">In Progress</span>
-                <span className="text-sm text-gray-600">
-                  {stats?.total_in_progress || 0} ({Math.round(inProgressPercent)}%)
-                </span>
+            {/* Agent Performance Table */}
+            <div className={`bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden transition-all duration-700 delay-600 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+              <div className="px-8 py-6 border-b border-slate-200/60">
+                <h2 className="text-lg font-semibold text-slate-800">Agent Performance</h2>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                <div
-                  className="bg-blue-500 h-3 rounded-full transition-all duration-500"
-                  style={{ width: `${inProgressPercent}%` }}
-                ></div>
-              </div>
-            </div>
-
-            {/* Waiting Customer */}
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium text-gray-700">Waiting Customer</span>
-                <span className="text-sm text-gray-600">
-                  {stats?.total_waiting_customer || 0} ({Math.round(waitingPercent)}%)
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                <div
-                  className="bg-orange-500 h-3 rounded-full transition-all duration-500"
-                  style={{ width: `${waitingPercent}%` }}
-                ></div>
-              </div>
-            </div>
-
-            {/* Resolved Today */}
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium text-gray-700">Resolved Today</span>
-                <span className="text-sm text-gray-600">
-                  {stats?.total_resolved_today || 0} ({Math.round(resolvedPercent)}%)
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                <div
-                  className="bg-green-500 h-3 rounded-full transition-all duration-500"
-                  style={{ width: `${resolvedPercent}%` }}
-                ></div>
-              </div>
-            </div>
-          </div>
-
-          {/* Summary */}
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-gray-900">{totalTickets}</div>
-                <div className="text-xs text-gray-500">Total Tickets</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{stats?.total_in_progress || 0}</div>
-                <div className="text-xs text-gray-500">Active</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{stats?.total_resolved_today || 0}</div>
-                <div className="text-xs text-gray-500">Resolved</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-yellow-600">{stats?.total_pending || 0}</div>
-                <div className="text-xs text-gray-500">Pending</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Agent List with Metrics */}
-        <div className="bg-white rounded-lg shadow mb-8">
-          <div className="px-6 py-4 border-b">
-            <h2 className="text-lg font-semibold">Agent Performance</h2>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Agent
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Active Tickets
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    In Progress
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Resolved Today
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {agents.map((agent) => {
-                  const activeCount =
-                    getAgentTicketCount(agent.id, "assigned") +
-                    getAgentTicketCount(agent.id, "in_progress");
-                  const inProgress = getAgentTicketCount(
-                    agent.id,
-                    "in_progress"
-                  );
-                  const resolved = getAgentTicketCount(agent.id, "resolved");
-
-                  return (
-                    <tr
-                      key={agent.id}
-                      className={selectedAgent === agent.id ? "bg-blue-50" : ""}
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {agent.name}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {agent.email}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`px-2 py-1 text-xs rounded-full ${
-                            agent.online
-                              ? "bg-green-100 text-green-800"
-                              : "bg-gray-100 text-gray-800"
-                          }`}
-                        >
-                          {agent.online ? "Online" : "Offline"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {activeCount}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {inProgress}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {resolved}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <button
-                          onClick={() =>
-                            setSelectedAgent(
-                              selectedAgent === agent.id ? null : agent.id
-                            )
-                          }
-                          className="text-blue-600 hover:text-blue-800"
-                        >
-                          {selectedAgent === agent.id
-                            ? "Show All"
-                            : "View Tickets"}
-                        </button>
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead className="bg-slate-50/50 sticky top-0 z-10 backdrop-blur-sm">
+                    <tr>
+                      <th className="px-8 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Agent</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Active</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">In Progress</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Resolved</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Actions</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200/60">
+                    {agents.map((agent) => {
+                      const activeCount = getAgentTicketCount(agent.id, "assigned") + getAgentTicketCount(agent.id, "in_progress");
+                      const inProgress = getAgentTicketCount(agent.id, "in_progress");
+                      const resolved = getAgentTicketCount(agent.id, "resolved");
 
-        {/* Ticket List */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="px-6 py-4 border-b">
-            <h2 className="text-lg font-semibold">
-              {selectedAgent
-                ? `Tickets for ${
-                    agents.find((a) => a.id === selectedAgent)?.name
-                  }`
-                : "All Tickets"}
-            </h2>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Ticket ID
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Customer
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Priority
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Agent
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Created
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredTickets.slice(0, 20).map((ticket) => (
-                  <tr key={ticket.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      #{ticket.id}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {ticket.customer_name}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {ticket.customer_phone}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <StatusBadge status={ticket.status} />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <PriorityBadge priority={ticket.priority} />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {ticket.agent_name || "-"}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(ticket.created_at).toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                      return (
+                        <tr
+                          key={agent.id}
+                          className={`transition-all duration-200 hover:bg-slate-50/50 ${selectedAgent === agent.id ? "bg-blue-50/50" : ""}`}
+                        >
+                          <td className="px-8 py-5">
+                            <div>
+                              <div className="text-sm font-semibold text-slate-800">{agent.name}</div>
+                              <div className="text-xs text-slate-500 mt-0.5">{agent.email}</div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-5">
+                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                              agent.online ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${agent.online ? "bg-emerald-500" : "bg-slate-400"}`}></span>
+                              {agent.online ? "Online" : "Offline"}
+                            </span>
+                          </td>
+                          <td className="px-6 py-5 text-sm font-semibold text-slate-700">{activeCount}</td>
+                          <td className="px-6 py-5 text-sm font-semibold text-slate-700">{inProgress}</td>
+                          <td className="px-6 py-5 text-sm font-semibold text-slate-700">{resolved}</td>
+                          <td className="px-6 py-5">
+                            <button
+                              onClick={() => setSelectedAgent(selectedAgent === agent.id ? null : agent.id)}
+                              className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                            >
+                              {selectedAgent === agent.id ? "Show All" : "View Tickets"}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Ticket List */}
+            <div className={`bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden transition-all duration-700 delay-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+              <div className="px-8 py-6 border-b border-slate-200/60">
+                <h2 className="text-lg font-semibold text-slate-800">
+                  {selectedAgent ? `Tickets for ${agents.find((a) => a.id === selectedAgent)?.name}` : "All Tickets"}
+                </h2>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead className="bg-slate-50/50 sticky top-0 z-10 backdrop-blur-sm">
+                    <tr>
+                      <th className="px-8 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">ID</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Customer</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Priority</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Agent</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Created</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200/60">
+                    {filteredTickets.slice(0, 20).map((ticket) => (
+                      <tr key={ticket.id} className="transition-all duration-200 hover:bg-slate-50/50">
+                        <td className="px-8 py-5 text-sm font-semibold text-slate-700">#{ticket.id}</td>
+                        <td className="px-6 py-5">
+                          <div className="text-sm font-medium text-slate-800">{ticket.customer_name}</div>
+                          <div className="text-xs text-slate-500 mt-0.5">{ticket.customer_phone}</div>
+                        </td>
+                        <td className="px-6 py-5"><StatusBadge status={ticket.status} /></td>
+                        <td className="px-6 py-5"><PriorityBadge priority={ticket.priority} /></td>
+                        <td className="px-6 py-5 text-sm text-slate-700">{ticket.agent_name || "-"}</td>
+                        <td className="px-6 py-5 text-xs text-slate-500">{new Date(ticket.created_at).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
@@ -482,75 +322,131 @@ export default function AdminMonitoringPage() {
 }
 
 function StatCard({
-  icon,
+  icon: Icon,
   title,
   value,
   color,
+  delay,
+  isVisible,
 }: {
-  icon: React.ReactNode;
+  icon: React.ComponentType<{ className?: string }>;
   title: string;
   value: number;
   color: string;
+  delay: number;
+  isVisible: boolean;
 }) {
-  const colorClasses = {
-    blue: "bg-blue-100 text-blue-600",
-    yellow: "bg-yellow-100 text-yellow-600",
-    orange: "bg-orange-100 text-orange-600",
-    green: "bg-green-100 text-green-600",
+  const colors = {
+    blue: { bg: "from-blue-500 to-blue-600", ring: "ring-blue-500/20", shadow: "shadow-blue-500/25", text: "text-blue-600" },
+    amber: { bg: "from-amber-500 to-amber-600", ring: "ring-amber-500/20", shadow: "shadow-amber-500/25", text: "text-amber-600" },
+    purple: { bg: "from-purple-500 to-purple-600", ring: "ring-purple-500/20", shadow: "shadow-purple-500/25", text: "text-purple-600" },
+    emerald: { bg: "from-emerald-500 to-emerald-600", ring: "ring-emerald-500/20", shadow: "shadow-emerald-500/25", text: "text-emerald-600" },
   };
 
+  const theme = colors[color as keyof typeof colors];
+
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <div
-        className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${
-          colorClasses[color as keyof typeof colorClasses]
-        }`}
-      >
-        {icon}
+    <div
+      className={`group bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200/60 shadow-sm hover:shadow-lg hover:scale-[1.02] transition-all duration-500 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+      style={{ transitionDelay: `${delay}ms` }}
+    >
+      <div className={`inline-flex p-3 rounded-xl bg-gradient-to-br ${theme.bg} ring-4 ${theme.ring} shadow-lg ${theme.shadow} mb-4`}>
+        <Icon className="w-6 h-6 text-white" />
       </div>
-      <h3 className="text-sm font-medium text-gray-600">{title}</h3>
-      <p className="text-2xl font-bold text-gray-900 mt-2">{value}</p>
+      <h3 className="text-sm font-medium text-slate-600 mb-1">{title}</h3>
+      <p className={`text-3xl font-bold ${theme.text} tracking-tight`}>{value}</p>
+    </div>
+  );
+}
+
+function MetricCard({ icon, title, value, subtitle, color }: {
+  icon: React.ReactNode;
+  title: string;
+  value: string;
+  subtitle: string;
+  color: string;
+}) {
+  const colors = { blue: "text-blue-600", emerald: "text-emerald-600" };
+  return (
+    <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200/60 shadow-sm hover:shadow-md transition-all duration-300">
+      <div className="flex items-center gap-2 mb-3">
+        <div className={colors[color as keyof typeof colors]}>{icon}</div>
+        <h2 className="text-sm font-semibold text-slate-700">{title}</h2>
+      </div>
+      <div className={`text-4xl font-bold ${colors[color as keyof typeof colors]} mb-2 tracking-tight`}>{value}</div>
+      <p className="text-xs text-slate-500">{subtitle}</p>
+    </div>
+  );
+}
+
+function ProgressBar({ label, value, percent, color }: {
+  label: string;
+  value: number;
+  percent: number;
+  color: string;
+}) {
+  const colors = {
+    amber: { bar: "bg-amber-500", bg: "bg-amber-100" },
+    blue: { bar: "bg-blue-500", bg: "bg-blue-100" },
+    orange: { bar: "bg-orange-500", bg: "bg-orange-100" },
+    emerald: { bar: "bg-emerald-500", bg: "bg-emerald-100" },
+  };
+  const theme = colors[color as keyof typeof colors];
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-2">
+        <span className="text-sm font-medium text-slate-700">{label}</span>
+        <span className="text-sm text-slate-600 font-semibold">
+          {value} <span className="text-slate-400 font-normal">({Math.round(percent)}%)</span>
+        </span>
+      </div>
+      <div className={`w-full ${theme.bg} rounded-full h-2.5 overflow-hidden`}>
+        <div className={`${theme.bar} h-2.5 rounded-full transition-all duration-1000 ease-out`} style={{ width: `${percent}%` }}></div>
+      </div>
+    </div>
+  );
+}
+
+function SummaryItem({ label, value, color }: { label: string; value: number; color: string }) {
+  const colors = { slate: "text-slate-700", blue: "text-blue-600", emerald: "text-emerald-600", amber: "text-amber-600" };
+  return (
+    <div className="text-center">
+      <div className={`text-3xl font-bold ${colors[color as keyof typeof colors]} tracking-tight`}>{value}</div>
+      <div className="text-xs text-slate-500 font-medium mt-1 uppercase tracking-wide">{label}</div>
     </div>
   );
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const colors = {
-    pending: "bg-yellow-100 text-yellow-800",
-    assigned: "bg-blue-100 text-blue-800",
-    in_progress: "bg-purple-100 text-purple-800",
-    waiting_customer: "bg-orange-100 text-orange-800",
-    resolved: "bg-green-100 text-green-800",
-    escalated: "bg-red-100 text-red-800",
-    closed: "bg-gray-100 text-gray-800",
+  const statusMap = {
+    pending: { bg: "bg-amber-100", text: "text-amber-700", label: "Pending" },
+    assigned: { bg: "bg-blue-100", text: "text-blue-700", label: "Assigned" },
+    in_progress: { bg: "bg-purple-100", text: "text-purple-700", label: "In Progress" },
+    waiting_customer: { bg: "bg-orange-100", text: "text-orange-700", label: "Waiting" },
+    resolved: { bg: "bg-emerald-100", text: "text-emerald-700", label: "Resolved" },
+    escalated: { bg: "bg-red-100", text: "text-red-700", label: "Escalated" },
+    closed: { bg: "bg-slate-100", text: "text-slate-600", label: "Closed" },
   };
-
+  const theme = statusMap[status as keyof typeof statusMap] || { bg: "bg-slate-100", text: "text-slate-600", label: status };
   return (
-    <span
-      className={`px-2 py-1 text-xs rounded-full ${
-        colors[status as keyof typeof colors] || "bg-gray-100 text-gray-800"
-      }`}
-    >
-      {status.replace("_", " ")}
+    <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${theme.bg} ${theme.text}`}>
+      {theme.label}
     </span>
   );
 }
 
 function PriorityBadge({ priority }: { priority: string }) {
-  const colors = {
-    low: "bg-gray-100 text-gray-800",
-    medium: "bg-blue-100 text-blue-800",
-    high: "bg-orange-100 text-orange-800",
-    urgent: "bg-red-100 text-red-800",
+  const priorityMap = {
+    low: { bg: "bg-slate-100", text: "text-slate-600", label: "Low" },
+    medium: { bg: "bg-blue-100", text: "text-blue-700", label: "Medium" },
+    high: { bg: "bg-orange-100", text: "text-orange-700", label: "High" },
+    urgent: { bg: "bg-red-100", text: "text-red-700", label: "Urgent" },
   };
-
+  const theme = priorityMap[priority as keyof typeof priorityMap] || { bg: "bg-slate-100", text: "text-slate-600", label: priority };
   return (
-    <span
-      className={`px-2 py-1 text-xs rounded-full ${
-        colors[priority as keyof typeof colors] || "bg-gray-100 text-gray-800"
-      }`}
-    >
-      {priority}
+    <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${theme.bg} ${theme.text}`}>
+      {theme.label}
     </span>
   );
 }

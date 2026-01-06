@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import {
   Inbox,
   UserCheck,
@@ -28,11 +28,21 @@ export default function SimpleSidebar({
   onSelectFilter,
 }: SidebarProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const token = useAuthStore((state) => state.token);
 
   const [active, setActive] = useState<MenuKey>("all");
   const [open, setOpen] = useState(true);
   const [chats, setChats] = useState<Chat[]>([]);
+
+  // Set active based on current pathname
+  useEffect(() => {
+    if (pathname === "/dashboard-admin-monitoring") {
+      setActive("dashboard");
+    } else if (pathname === "/dashboard-admin") {
+      setActive("all");
+    }
+  }, [pathname]);
 
   // Fetch chats dari backend
   useEffect(() => {
@@ -71,25 +81,37 @@ export default function SimpleSidebar({
       label: "All Tickets",
       icon: <Inbox className="h-5 w-5" />,
       count: countAll,
+      isLink: true,
+      href: "/dashboard-admin",
     },
     {
       key: "assigned" as const,
       label: "Assigned",
       icon: <UserCheck className="h-5 w-5" />,
       count: countAssigned,
+      isLink: true,
+      href: "/dashboard-admin",
     },
     {
       key: "unassigned" as const,
       label: "Unassigned",
       icon: <Clock className="h-5 w-5" />,
       count: countUnassigned,
+      isLink: true,
+      href: "/dashboard-admin",
     },
   ];
 
-  const handleClick = (key: MenuKey) => {
+  const handleClick = (key: MenuKey, href?: string) => {
     setActive(key);
-    // Only call onSelectFilter for filter keys (not dashboard)
-    if (key !== "dashboard") {
+
+    // If it's a link, navigate to the href
+    if (href) {
+      router.push(href);
+    }
+
+    // Only call onSelectFilter for filter keys (not dashboard) and if it's not a direct link
+    if (key !== "dashboard" && !href) {
       onSelectFilter?.(key as "all" | "assigned" | "unassigned");
     }
   };
@@ -140,11 +162,8 @@ export default function SimpleSidebar({
             <button
               key={item.key}
               onClick={() => {
-                if ("isLink" in item && item.isLink && "href" in item) {
-                  router.push(item.href as string);
-                } else {
-                  handleClick(item.key as MenuKey);
-                }
+                const href = "href" in item ? item.href : undefined;
+                handleClick(item.key as MenuKey, href as string | undefined);
               }}
               className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${
                 isActive

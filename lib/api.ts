@@ -488,6 +488,7 @@ export interface TicketStatsResponse {
   total_in_progress: number;
   total_waiting_customer: number;
   total_resolved_today: number;
+  total_resolved: number;
   total_escalated: number;
   avg_wait_time_seconds?: number;
   avg_resolution_time_seconds?: number;
