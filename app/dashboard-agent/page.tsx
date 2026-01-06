@@ -1,19 +1,21 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import ChatList from "@/components/chat/chat-list";
-import ChatWindowAgent from "@/components/chat/chat-window-agent";
 import AdminChatWindow from "@/components/chat/admin-chat-window";
 import CustomerDetail from "@/components/customer/customer-detail";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import ChatWindow from "@/components/chat/chat-window";
 import { Chat, AdminChat } from "@/app/types/types";
-import { MessageSquare, ShieldCheck, LogOut } from "lucide-react";
+import { MessageSquare, ShieldCheck, LogOut, Ticket } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 import {
   getChats,
   sendMessage,
   getAdminChat,
   sendAdminMessage,
+  updateChatMode,
 } from "@/lib/api";
 import {
   transformChatResponse,
@@ -22,6 +24,7 @@ import {
 import { useSmartRefresh } from "@/hooks/useSmartRefresh";
 
 function DashboardAgentContent() {
+  const router = useRouter();
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChatId, setActiveChatId] = useState<number | null>(null);
   const [showCustomer, setShowCustomer] = useState(true);
@@ -48,9 +51,11 @@ function DashboardAgentContent() {
       return;
     }
 
+    // CRITICAL FIX: Capture isFirstLoad BEFORE any state changes
+    const isFirstLoad = isFirstLoadRef.current;
+
     try {
       // Only show loading on initial load, not on auto-refresh
-      const isFirstLoad = isFirstLoadRef.current;
       if (isFirstLoad) {
         setLoading(true);
       }
@@ -63,7 +68,6 @@ function DashboardAgentContent() {
         // On first load, set active chat
         if (isFirstLoad && transformedChats.length > 0 && !activeChatId) {
           setActiveChatId(transformedChats[0].id);
-          isFirstLoadRef.current = false;
         }
 
         // Optimize: only update if there are actual changes
@@ -94,11 +98,11 @@ function DashboardAgentContent() {
       setError(null);
     } catch (err) {
       console.error("Failed to load chats:", err);
-      if (isFirstLoadRef.current) {
+      if (isFirstLoad) {
         setError("Failed to load chats from backend");
       }
     } finally {
-      if (isFirstLoadRef.current) {
+      if (isFirstLoad) {
         setLoading(false);
         isFirstLoadRef.current = false;
       }
@@ -113,7 +117,7 @@ function DashboardAgentContent() {
     enabled: !!token && activeTab === "customer",
   });
 
-  // Load admin chat with auto-refresh
+  // ================= LOAD ADMIN CHAT =================
   const loadAdminChat = async () => {
     // Skip jika tidak ada user atau sedang di tab admin chat
     if (!user || activeTab !== "admin") return;
@@ -134,9 +138,51 @@ function DashboardAgentContent() {
     enabled: !!user && activeTab === "admin",
   });
 
+  // ================= INITIAL LOAD =================
+  // Load chats on component mount and when URL params change
+  useEffect(() => {
+    loadChats();
+
+    // Check if we need to refresh after claiming ticket
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get('refresh') === 'true') {
+      // Remove the refresh parameter from URL
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]); // Re-load when token changes
+
+  // ================= REFRESH ON PAGE FOCUS =================
+  // Refresh chats when user returns to the page (e.g., after claiming ticket)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && activeTab === "customer") {
+        // Page became visible again - refresh chats
+        loadChats();
+      }
+    };
+
+    const handleFocus = () => {
+      if (activeTab === "customer") {
+        // Window got focus - refresh chats
+        loadChats();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, token]);
+
   const activeChat = chats.find((c) => c.id === activeChatId);
 
-  // Handle sending message to customer (via WhatsApp backend)
+  // ================= SEND MESSAGE TO CUSTOMER =================
   const handleSendMessage = async (text: string) => {
     if (!token || !user || !activeChatId) return;
 
@@ -197,6 +243,107 @@ function DashboardAgentContent() {
       alert("Failed to send message. Please try again.");
     }
   };
+  // ================= ASSIGN AGENT =================
+  const assignToAgent = async () => {
+    if (!activeChat || !token) return;
+
+    // Optimistic update
+    setChats((prev) =>
+      prev.map((c) =>
+        c.id === activeChatId ? { ...c, mode: "agent" as const } : c
+      )
+    );
+
+    // TODO: Call backend API to update chat mode
+    // await updateChatMode(activeChatId, "agent", token);
+  };
+
+  // ================= PAUSE / RESUME =================
+  const handlePauseChat = async (nextMode: Chat["mode"]) => {
+    if (!activeChat || !token || !activeChatId || !nextMode) return;
+
+    // Optimistic update - update UI immediately
+    setChats((prev) =>
+      prev.map((c) => (c.id === activeChatId ? { ...c, mode: nextMode } : c))
+    );
+
+    try {
+      // Call backend API to update chat mode
+      await updateChatMode(activeChatId, nextMode, token);
+      console.log(`Chat mode updated to: ${nextMode}`);
+
+      // Refresh chats to get updated data from backend
+      await loadChats();
+
+      // Mark activity untuk trigger fast refresh
+      markChatActivity();
+    } catch (err) {
+      console.error("Failed to update chat mode:", err);
+
+      // Revert optimistic update if failed
+      setChats((prev) =>
+        prev.map((c) =>
+          c.id === activeChatId ? { ...c, mode: activeChat.mode } : c
+        )
+      );
+
+      alert("Failed to update chat status. Please try again.");
+    }
+  };
+  const handleCustomerMessage = async (chatId: number, text: string) => {
+    if (!token || !user) return;
+
+    // Optimistic update
+    const optimisticMessage = {
+      id: Date.now(),
+      text,
+      sender: "customer" as const,
+      time: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      status: "read" as const,
+    };
+
+    setChats((prev) =>
+      prev.map((chat) =>
+        chat.id === chatId
+          ? {
+              ...chat,
+              messages: [...chat.messages, optimisticMessage],
+            }
+          : chat
+      )
+    );
+
+    // Send to backend
+    try {
+      await sendMessage(
+        {
+          chat_id: chatId,
+          text,
+          sender: "customer",
+        },
+        token
+      );
+      console.log("Customer message sent successfully");
+    } catch (err) {
+      console.error("Failed to send customer message:", err);
+      // Revert on error
+      setChats((prev) =>
+        prev.map((chat) =>
+          chat.id === chatId
+            ? {
+                ...chat,
+                messages: chat.messages.filter(
+                  (m) => m.id !== optimisticMessage.id
+                ),
+              }
+            : chat
+        )
+      );
+    }
+  };
 
   // Handle sending message to admin (internal chat)
   const handleSendAdminMessage = async (text: string) => {
@@ -234,58 +381,9 @@ function DashboardAgentContent() {
     }
   };
 
-  // Loading state
-  if (loading) {
-    return (
-      <div className="flex h-full w-full items-center justify-center bg-slate-50">
-        <div className="text-center">
-          <div className="text-lg font-semibold text-neutral-900">
-            Loading...
-          </div>
-          <div className="text-sm text-neutral-500">Fetching your chats</div>
-        </div>
-      </div>
-    );
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <div className="flex h-full w-full items-center justify-center bg-slate-50">
-        <div className="text-center">
-          <div className="text-lg font-semibold text-red-600">Error</div>
-          <div className="text-sm text-neutral-500 mt-2">{error}</div>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-4 px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // No chats state
-  // if (chats.length === 0) {
-  //   return (
-  //     <div className="flex h-full w-full items-center justify-center bg-slate-50">
-  //       <div className="text-center">
-  //         <div className="text-lg font-semibold text-neutral-900">No Chats</div>
-  //         <div className="text-sm text-neutral-500">No chats assigned to you yet</div>
-  //       </div>
-  //     </div>
-  //   );
-  // }
-
-  // // No active chat selected
-  // if (!activeChat) {
-  //   return null;
-  // }
-
   return (
     <div className="flex h-full w-full overflow-hidden bg-slate-50">
-      {/* TAB SWITCHER */}
+      {/* TAB SWITCHER - ALWAYS VISIBLE */}
       <div className="w-16 bg-neutral-900 flex flex-col items-center py-4 gap-2">
         <button
           onClick={() => {
@@ -316,6 +414,15 @@ function DashboardAgentContent() {
           <ShieldCheck className="h-5 w-5" />
         </button>
 
+        {/* Ticket Queue Button */}
+        <button
+          onClick={() => router.push("/dashboard-agent-queue")}
+          className="w-12 h-12 rounded-xl flex items-center justify-center transition-all bg-neutral-800 text-neutral-400 hover:bg-blue-600 hover:text-white"
+          title="Ticket Queue - Ambil Ticket!"
+        >
+          <Ticket className="h-5 w-5" />
+        </button>
+
         {/* Spacer */}
         <div className="flex-1" />
 
@@ -329,41 +436,62 @@ function DashboardAgentContent() {
         </button>
       </div>
 
-      <div
-        className={`grid flex-1 min-w-0 h-full ${
-          activeTab === "customer" && showCustomer
-            ? "grid-cols-[280px_1fr_320px]"
-            : activeTab === "customer"
-            ? "grid-cols-[280px_1fr]"
-            : "grid-cols-[1fr]"
-        }`}
-      >
-        {activeTab === "customer" ? (
-          <>
-            {/* CHAT LIST */}
-            <ChatList
-              chats={chats}
-              activeChatId={activeChatId}
-              onSelectChat={(chat) => {
-                setActiveChatId(chat.id);
-                setShowCustomer(true);
-              }}
-            />
+      {/* CONTENT AREA - with conditional loading/error states */}
+      {loading ? (
+        <div className="flex h-full w-full items-center justify-center">
+          <div className="text-center">
+            <div className="text-lg font-semibold text-neutral-900">
+              Loading...
+            </div>
+            <div className="text-sm text-neutral-500">Fetching your chats</div>
+          </div>
+        </div>
+      ) : error ? (
+        <div className="flex h-full w-full items-center justify-center">
+          <div className="text-center">
+            <div className="text-lg font-semibold text-red-600">Error</div>
+            <div className="text-sm text-neutral-500 mt-2">{error}</div>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-4 px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div
+          className={`grid flex-1 min-w-0 h-full ${
+            activeTab === "customer" && showCustomer
+              ? "grid-cols-[280px_1fr_320px]"
+              : activeTab === "customer"
+              ? "grid-cols-[280px_1fr]"
+              : "grid-cols-[1fr]"
+          }`}
+        >
+          {activeTab === "customer" ? (
+            <>
+              {/* CHAT LIST */}
+              <ChatList
+                chats={chats}
+                activeChatId={activeChatId}
+                onSelectChat={(chat) => {
+                  setActiveChatId(chat.id);
+                  setShowCustomer(true);
+                }}
+              />
 
-            {/* CHAT WINDOW & CUSTOMER DETAIL */}
-            {activeChat ? (
+              {/* CHAT WINDOW & CUSTOMER DETAIL */}
+              {activeChat ? (
               <>
-                <ChatWindowAgent
+                <ChatWindow
                   chat={activeChat}
                   onSendMessage={handleSendMessage}
-                  onEndChat={(mode) => {
-                    // Update chat mode to closed
-                    setChats((prev) =>
-                      prev.map((c) =>
-                        c.id === activeChatId ? { ...c, mode } : c
-                      )
-                    );
-                  }}
+                  onAssignAgent={assignToAgent}
+                  onPauseChat={handlePauseChat}
+                  onCustomerMessage={(text) =>
+                    handleCustomerMessage(activeChatId!, text)
+                  }
                   onOpenCustomer={() => setShowCustomer(true)}
                 />
 
@@ -395,7 +523,8 @@ function DashboardAgentContent() {
             onSendMessage={handleSendAdminMessage}
           />
         )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

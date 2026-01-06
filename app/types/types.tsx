@@ -61,4 +61,8 @@ export interface Chat {
 
   /** admin only */
   mode?: ChatMode;
+
+  /** ticket queue fields */
+  phone?: string;
+  lastMessageAt?: string;
 }

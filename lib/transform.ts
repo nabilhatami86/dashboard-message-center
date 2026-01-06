@@ -19,6 +19,9 @@ export function transformChatResponse(chat: ChatResponse): Chat {
       lastActive: chat.online ? "Online" : formatLastActive(chat.last_message_at),
     },
     messages: (chat.messages || []).map(transformMessageResponse),
+    // Ticket queue fields
+    phone: chat.customer_phone,
+    lastMessageAt: chat.last_message_at,
   };
 }
 
@@ -41,6 +44,7 @@ export function transformMessageResponse(message: MessageResponse): Message {
 export function transformAdminChatResponse(adminChat: AdminChatResponse): AdminChat {
   return {
     id: adminChat.id,
+    mode: adminChat.mode,
     messages: adminChat.messages.map((msg) => ({
       id: msg.id,
       text: msg.text,

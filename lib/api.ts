@@ -28,7 +28,10 @@ export interface AdminUser {
   online?: boolean;
 }
 
-export async function login(username: string, password: string): Promise<LoginResponse> {
+export async function login(
+  username: string,
+  password: string
+): Promise<LoginResponse> {
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
     method: "POST",
     headers: {
@@ -94,7 +97,7 @@ export async function getChats(token: string): Promise<ChatResponse[]> {
 
   // Fetch detailed messages for each chat
   const chatsWithMessages = await Promise.all(
-    chatList.map(async (chat: any) => {
+    chatList.map(async (chat: { id: number }) => {
       try {
         const detailedChat = await getChatById(chat.id, token);
         return detailedChat;
@@ -109,14 +112,17 @@ export async function getChats(token: string): Promise<ChatResponse[]> {
   return chatsWithMessages;
 }
 
-export async function getChatById(chatId: number, token?: string): Promise<ChatResponse> {
+export async function getChatById(
+  chatId: number,
+  token?: string
+): Promise<ChatResponse> {
   const headers: HeadersInit = {};
   if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+    headers["Authorization"] = `Bearer ${token}`;
   }
 
   const response = await fetch(`${API_BASE_URL}/chats/${chatId}`, {
-    headers
+    headers,
   });
 
   if (!response.ok) {
@@ -176,7 +182,32 @@ export async function deleteChat(chatId: number, token: string): Promise<void> {
   }
 }
 
-export async function updateMessage(messageId: number, newText: string, token: string): Promise<void> {
+export async function updateChatMode(
+  chatId: number,
+  mode: "bot" | "agent" | "paused" | "closed",
+  token: string
+): Promise<ChatResponse> {
+  const response = await fetch(`${API_BASE_URL}/chats/${chatId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ mode }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to update chat mode");
+  }
+
+  return response.json();
+}
+
+export async function updateMessage(
+  messageId: number,
+  newText: string,
+  token: string
+): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/chats/messages/${messageId}`, {
     method: "PATCH",
     headers: {
@@ -191,7 +222,10 @@ export async function updateMessage(messageId: number, newText: string, token: s
   }
 }
 
-export async function deleteMessage(messageId: number, token: string): Promise<void> {
+export async function deleteMessage(
+  messageId: number,
+  token: string
+): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/chats/messages/${messageId}`, {
     method: "DELETE",
     headers: {
@@ -223,7 +257,9 @@ export interface AdminMessageResponse {
 }
 
 // Get admin chat messages from backend
-export async function getAdminChat(agentId: number): Promise<AdminChatResponse> {
+export async function getAdminChat(
+  agentId: number
+): Promise<AdminChatResponse> {
   try {
     const response = await fetch(`${API_BASE_URL}/admin-chat/${agentId}`, {
       headers: {
@@ -259,18 +295,21 @@ export async function sendAdminMessage(
   mode: "bot" | "manual" = "bot"
 ): Promise<AdminMessageResponse> {
   try {
-    const response = await fetch(`${API_BASE_URL}/admin-chat/${agentId}/messages`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        text,
-        sender,
-        sender_name: senderName,
-        mode,
-      }),
-    });
+    const response = await fetch(
+      `${API_BASE_URL}/admin-chat/${agentId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          text,
+          sender,
+          sender_name: senderName,
+          mode,
+        }),
+      }
+    );
 
     if (!response.ok) {
       throw new Error("Failed to send admin message");
@@ -374,6 +413,302 @@ function getMockAdminList(): AdminUser[] {
       online: false,
     },
   ];
+}
+
+// =====================
+// TICKET QUEUE API (Simple FIFO Queue System)
+// =====================
+
+// Get available tickets (unassigned chats) from the queue
+export async function getAvailableTickets(token: string): Promise<ChatResponse[]> {
+  const response = await fetch(`${API_BASE_URL}/chats/queue/available`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch available tickets");
+  }
+
+  // Backend now returns full ChatResponse with messages included
+  return response.json();
+}
+
+// Claim a ticket from the queue
+export async function claimTicketFromQueue(
+  chatId: number,
+  token: string
+): Promise<ChatResponse> {
+  const response = await fetch(`${API_BASE_URL}/chats/${chatId}/claim`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail || "Failed to claim ticket");
+  }
+
+  return response.json();
+}
+
+// =====================
+// TICKET & QUEUE API
+// =====================
+export interface TicketResponse {
+  id: number;
+  chat_id: number;
+  status:
+    | "pending"
+    | "assigned"
+    | "in_progress"
+    | "waiting_customer"
+    | "resolved"
+    | "escalated"
+    | "closed";
+  priority: "low" | "medium" | "high" | "urgent";
+  assigned_agent_id?: number;
+  created_at: string;
+  assigned_at?: string;
+  first_response_at?: string;
+  resolved_at?: string;
+  notes?: string;
+  tags?: string;
+  customer_name?: string;
+  customer_phone?: string;
+  agent_name?: string;
+}
+
+export interface TicketStatsResponse {
+  total_pending: number;
+  total_assigned: number;
+  total_in_progress: number;
+  total_waiting_customer: number;
+  total_resolved_today: number;
+  total_escalated: number;
+  avg_wait_time_seconds?: number;
+  avg_resolution_time_seconds?: number;
+}
+
+export interface AgentProfileResponse {
+  id: number;
+  user_id: number;
+  display_name: string;
+  signature?: string;
+  status: "online" | "offline" | "busy" | "break";
+  is_available: boolean;
+  max_concurrent_tickets: number;
+  expertise_tags?: string;
+  priority_score: number;
+  last_activity_at?: string;
+  total_tickets_handled: number;
+  total_tickets_resolved: number;
+  average_response_time_seconds?: number;
+  average_resolution_time_seconds?: number;
+}
+
+// Get pending tickets (queue)
+export async function getPendingTickets(
+  token: string,
+  limit: number = 50
+): Promise<TicketResponse[]> {
+  const response = await fetch(`${API_BASE_URL}/tickets/queue?limit=${limit}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch pending tickets");
+  }
+
+  return response.json();
+}
+
+// Get my tickets (for agents)
+export async function getMyTickets(
+  token: string,
+  status?: string
+): Promise<TicketResponse[]> {
+  const url = status
+    ? `${API_BASE_URL}/tickets/my-tickets?status=${status}`
+    : `${API_BASE_URL}/tickets/my-tickets`;
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch my tickets");
+  }
+
+  return response.json();
+}
+
+// Get all tickets (admin only)
+export async function getAllTickets(
+  token: string,
+  status?: string,
+  priority?: string,
+  limit: number = 100
+): Promise<TicketResponse[]> {
+  let url = `${API_BASE_URL}/tickets/all?limit=${limit}`;
+  if (status) url += `&status=${status}`;
+  if (priority) url += `&priority=${priority}`;
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch all tickets");
+  }
+
+  return response.json();
+}
+
+// Get ticket by ID
+export async function getTicketById(
+  ticketId: number,
+  token: string
+): Promise<TicketResponse> {
+  const response = await fetch(`${API_BASE_URL}/tickets/${ticketId}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch ticket");
+  }
+
+  return response.json();
+}
+
+// Agent claims ticket from queue
+export async function claimTicket(
+  ticketId: number,
+  token: string
+): Promise<{ status: string; message: string; ticket: TicketResponse }> {
+  const response = await fetch(`${API_BASE_URL}/tickets/${ticketId}/claim`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || "Failed to claim ticket");
+  }
+
+  return response.json();
+}
+
+// Manually assign ticket (admin only)
+export async function assignTicket(
+  ticketId: number,
+  agentId: number,
+  token: string,
+  reason?: string
+): Promise<{ status: string; message: string; ticket: TicketResponse }> {
+  const response = await fetch(`${API_BASE_URL}/tickets/${ticketId}/assign`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ agent_id: agentId, reason }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to assign ticket");
+  }
+
+  return response.json();
+}
+
+// Update ticket status
+export async function updateTicketStatus(
+  ticketId: number,
+  status: TicketResponse["status"],
+  token: string
+): Promise<{ status: string; message: string; ticket: TicketResponse }> {
+  const response = await fetch(`${API_BASE_URL}/tickets/${ticketId}/status`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ status }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to update ticket status");
+  }
+
+  return response.json();
+}
+
+// Resolve ticket
+export async function resolveTicket(
+  ticketId: number,
+  token: string
+): Promise<{ status: string; message: string; ticket: TicketResponse }> {
+  const response = await fetch(`${API_BASE_URL}/tickets/${ticketId}/resolve`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to resolve ticket");
+  }
+
+  return response.json();
+}
+
+// Get ticket statistics
+export async function getTicketStats(
+  token: string
+): Promise<TicketStatsResponse> {
+  const response = await fetch(`${API_BASE_URL}/tickets/stats/overview`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch ticket stats");
+  }
+
+  return response.json();
+}
+
+// Get agent profile
+export async function getAgentProfile(
+  agentId: number,
+  token: string
+): Promise<AgentProfileResponse> {
+  const response = await fetch(`${API_BASE_URL}/agents/${agentId}/profile`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch agent profile");
+  }
+
+  return response.json();
 }
 
 // =====================

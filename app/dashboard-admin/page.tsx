@@ -8,7 +8,8 @@ import AgentList from "@/components/chat/agent-list";
 import AdminAgentChatWindow from "@/components/chat/admin-agent-chat-window";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { Chat, AdminChat } from "@/app/types/types";
-import { LogOut, MessageSquare, Users } from "lucide-react";
+import { LogOut, MessageSquare, Users, BarChart3 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 import {
   getChats,
@@ -26,6 +27,7 @@ import {
 import { useSmartRefresh } from "@/hooks/useSmartRefresh";
 
 function DashboardContent() {
+  const router = useRouter();
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChatId, setActiveChatId] = useState<number | null>(null);
   const [showCustomer, setShowCustomer] = useState(true);
@@ -436,42 +438,10 @@ function DashboardContent() {
 
   const activeAgent = agents.find((a) => a.id === activeAgentId);
 
-  // Loading state
-  if (loading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-slate-50">
-        <div className="text-center">
-          <div className="text-lg font-semibold text-neutral-900">
-            Loading...
-          </div>
-          <div className="text-sm text-neutral-500">Fetching all chats</div>
-        </div>
-      </div>
-    );
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-slate-50">
-        <div className="text-center">
-          <div className="text-lg font-semibold text-red-600">Error</div>
-          <div className="text-sm text-neutral-500 mt-2">{error}</div>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-4 px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden bg-slate-50">
-      {/* Top Bar with Tab Switcher */}
-      <div className="flex items-center justify-between px-6 py-3 bg-white border-b border-neutral-200">
+      {/* Top Bar with Tab Switcher - ALWAYS VISIBLE */}
+      <div className="flex items-center justify-between px-6 py-3 bg-white border-b border-neutral-200 flex-shrink-0">
         {/* Tab Switcher */}
         <div className="flex gap-1 bg-neutral-100 rounded-lg p-1">
           <button
@@ -498,19 +468,57 @@ function DashboardContent() {
           </button>
         </div>
 
-        {/* Logout Button */}
-        <button
-          onClick={logout}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-neutral-900 text-white hover:bg-red-600 transition-all"
-          title="Logout"
-        >
-          <LogOut className="h-4 w-4" />
-          <span className="text-sm font-medium">Logout</span>
-        </button>
+        {/* Action Buttons */}
+        <div className="flex items-center gap-3">
+          {/* Agent Monitoring Button */}
+          <button
+            onClick={() => router.push("/dashboard-admin-monitoring")}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-all"
+            title="Agent Monitoring - Track Performance"
+          >
+            <BarChart3 className="h-4 w-4" />
+            <span className="text-sm font-medium">Agent Monitoring</span>
+          </button>
+
+          {/* Logout Button */}
+          <button
+            onClick={logout}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-neutral-900 text-white hover:bg-red-600 transition-all"
+            title="Logout"
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="text-sm font-medium">Logout</span>
+          </button>
+        </div>
       </div>
 
-      {/* Customer Chats View */}
-      {activeTab === "customer" ? (
+      {/* Content Area - Loading/Error/Content */}
+      <div className="flex-1 overflow-hidden">
+        {loading ? (
+        <div className="flex h-full w-full items-center justify-center">
+          <div className="text-center">
+            <div className="text-lg font-semibold text-neutral-900">
+              Loading...
+            </div>
+            <div className="text-sm text-neutral-500">Fetching all chats</div>
+          </div>
+        </div>
+      ) : error ? (
+        /* Error state - show in content area only */
+        <div className="flex h-full w-full items-center justify-center">
+          <div className="text-center">
+            <div className="text-lg font-semibold text-red-600">Error</div>
+            <div className="text-sm text-neutral-500 mt-2">{error}</div>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-4 px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      ) : activeTab === "customer" ? (
+        /* Customer Chats View */
         <div
           className={`grid flex-1 min-w-0 h-full transition-all duration-300 ${
             showCustomer
@@ -601,6 +609,7 @@ function DashboardContent() {
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }

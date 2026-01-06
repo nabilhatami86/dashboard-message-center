@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-// import { useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   Inbox,
   UserCheck,
   Clock,
+  BarChart3,
   // LogOut,
   ChevronLeft,
   ChevronRight,
@@ -21,12 +22,12 @@ interface SidebarProps {
   onSelectFilter?: (filter: "all" | "assigned" | "unassigned") => void;
 }
 
-type MenuKey = "all" | "assigned" | "unassigned";
+type MenuKey = "all" | "assigned" | "unassigned" | "dashboard";
 
 export default function SimpleSidebar({
   onSelectFilter,
 }: SidebarProps) {
-  // const router = useRouter();
+  const router = useRouter();
   const token = useAuthStore((state) => state.token);
 
   const [active, setActive] = useState<MenuKey>("all");
@@ -59,6 +60,13 @@ export default function SimpleSidebar({
 
   const menuItems = [
     {
+      key: "dashboard" as const,
+      label: "Dashboard",
+      icon: <BarChart3 className="h-5 w-5" />,
+      isLink: true,
+      href: "/dashboard-admin-monitoring",
+    },
+    {
       key: "all" as const,
       label: "All Tickets",
       icon: <Inbox className="h-5 w-5" />,
@@ -80,7 +88,10 @@ export default function SimpleSidebar({
 
   const handleClick = (key: MenuKey) => {
     setActive(key);
-    onSelectFilter?.(key);
+    // Only call onSelectFilter for filter keys (not dashboard)
+    if (key !== "dashboard") {
+      onSelectFilter?.(key as "all" | "assigned" | "unassigned");
+    }
   };
 
   // const handleLogout = () => {
@@ -128,7 +139,13 @@ export default function SimpleSidebar({
           return (
             <button
               key={item.key}
-              onClick={() => handleClick(item.key)}
+              onClick={() => {
+                if ("isLink" in item && item.isLink && "href" in item) {
+                  router.push(item.href as string);
+                } else {
+                  handleClick(item.key as MenuKey);
+                }
+              }}
               className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${
                 isActive
                   ? "bg-white/15 text-white"
@@ -142,15 +159,17 @@ export default function SimpleSidebar({
                   <span className="flex-1 text-sm font-medium">
                     {item.label}
                   </span>
-                  <span
-                    className={`text-[11px] px-2 py-0.5 rounded-full ${
-                      isActive
-                        ? "bg-white/20 text-white"
-                        : "bg-white/10 text-white/60"
-                    }`}
-                  >
-                    {item.count}
-                  </span>
+                  {"count" in item && (
+                    <span
+                      className={`text-[11px] px-2 py-0.5 rounded-full ${
+                        isActive
+                          ? "bg-white/20 text-white"
+                          : "bg-white/10 text-white/60"
+                      }`}
+                    >
+                      {item.count}
+                    </span>
+                  )}
                 </>
               )}
             </button>
