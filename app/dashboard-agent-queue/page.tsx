@@ -6,9 +6,10 @@ import { Chat } from "@/app/types/types";
 import { getAvailableTickets, claimTicketFromQueue } from "@/lib/api";
 import { transformChatResponse } from "@/lib/transform";
 import { useAuthStore } from "@/store/authStore";
-import { Clock, User, AlertCircle, CheckCircle, Zap, RefreshCw, ArrowLeft, MessageSquare } from "lucide-react";
+import { Clock, User, AlertCircle, CheckCircle, Zap, RefreshCw, MessageSquare } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import AgentSidebar from "@/components/ui/agent-sidebar";
 
 export default function AgentQueuePage() {
   const router = useRouter();
@@ -85,9 +86,9 @@ export default function AgentQueuePage() {
 
       // Redirect to dashboard agent with refresh parameter
       router.push("/dashboard-agent?refresh=true");
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error claiming ticket:", error);
-      setError(error.message || "Gagal mengambil ticket. Mungkin sudah diambil agent lain.");
+      setError(error instanceof Error ? error.message : "Gagal mengambil ticket. Mungkin sudah diambil agent lain.");
 
       // Refresh tickets to get updated queue
       await loadTickets(false);
@@ -122,38 +123,43 @@ export default function AgentQueuePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Ticket Queue</h1>
-              <p className="mt-1 text-sm text-gray-500">
-                Ambil ticket secepat mungkin! First In First Out (FIFO) 🏃‍♂️
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => loadTickets(true)}
-                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center gap-2"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Refresh
-              </button>
-              <button
-                onClick={() => router.push("/dashboard-agent")}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back to Chat
-              </button>
+    <div className="flex h-screen w-full overflow-hidden bg-gray-50">
+      {/* SIDEBAR */}
+      <AgentSidebar
+        activeTab="customer"
+        onTabChange={(tab) => {
+          if (tab === "customer" || tab === "admin") {
+            router.push("/dashboard-agent");
+          }
+        }}
+      />
+
+      {/* MAIN CONTENT */}
+      <div className="flex-1 overflow-auto">
+        {/* Header */}
+        <div className="bg-white shadow sticky top-0 z-10">
+          <div className="px-4 sm:px-6 lg:px-8 py-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Ticket Queue</h1>
+                <p className="mt-1 text-sm text-gray-500">
+                  Ambil ticket secepat mungkin! First In First Out (FIFO) 🏃‍♂️
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => loadTickets(true)}
+                  className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center gap-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Refresh
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="px-4 sm:px-6 lg:px-8 py-8">
         {/* Error Alert */}
         {error && (
           <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
@@ -329,6 +335,7 @@ export default function AgentQueuePage() {
               </ul>
             </div>
           </div>
+        </div>
         </div>
       </div>
     </div>

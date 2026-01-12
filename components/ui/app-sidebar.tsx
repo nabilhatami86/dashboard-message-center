@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   Inbox,
@@ -16,6 +16,7 @@ import { Chat } from "@/app/dashboard-admin/types";
 import { useAuthStore } from "@/store/authStore";
 import { getChats } from "@/lib/api";
 import { transformChatResponse } from "@/lib/transform";
+import ThemeSwitcher from "./theme-switcher";
 
 interface SidebarProps {
   chats?: Chat[];
@@ -24,25 +25,29 @@ interface SidebarProps {
 
 type MenuKey = "all" | "assigned" | "unassigned" | "dashboard";
 
-export default function SimpleSidebar({
-  onSelectFilter,
-}: SidebarProps) {
+export default function SimpleSidebar({ onSelectFilter }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const token = useAuthStore((state) => state.token);
 
-  const [active, setActive] = useState<MenuKey>("all");
+  // Calculate active state based on pathname using useMemo
+  const initialActive = useMemo((): MenuKey => {
+    if (pathname === "/dashboard-admin-monitoring") {
+      return "dashboard";
+    } else if (pathname === "/dashboard-admin") {
+      return "all";
+    }
+    return "all";
+  }, [pathname]);
+
+  const [active, setActive] = useState<MenuKey>(initialActive);
   const [open, setOpen] = useState(true);
   const [chats, setChats] = useState<Chat[]>([]);
 
-  // Set active based on current pathname
+  // Sync active state when pathname changes
   useEffect(() => {
-    if (pathname === "/dashboard-admin-monitoring") {
-      setActive("dashboard");
-    } else if (pathname === "/dashboard-admin") {
-      setActive("all");
-    }
-  }, [pathname]);
+    setActive(initialActive);
+  }, [initialActive]);
 
   // Fetch chats dari backend
   useEffect(() => {
@@ -194,6 +199,13 @@ export default function SimpleSidebar({
             </button>
           );
         })}
+      </div>
+
+      {/* Theme Switcher */}
+      <div className="border-t border-white/10 p-4">
+        <div className="flex items-center justify-end">
+          <ThemeSwitcher />
+        </div>
       </div>
 
       {/* Logout */}

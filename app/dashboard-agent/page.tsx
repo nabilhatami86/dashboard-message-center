@@ -7,9 +7,8 @@ import CustomerDetail from "@/components/customer/customer-detail";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import ChatWindow from "@/components/chat/chat-window";
 import { Chat, AdminChat } from "@/app/types/types";
-import { MessageSquare, ShieldCheck, LogOut, Ticket } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
+import AgentSidebar from "@/components/ui/agent-sidebar";
 import {
   getChats,
   sendMessage,
@@ -24,7 +23,6 @@ import {
 import { useSmartRefresh } from "@/hooks/useSmartRefresh";
 
 function DashboardAgentContent() {
-  const router = useRouter();
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChatId, setActiveChatId] = useState<number | null>(null);
   const [showCustomer, setShowCustomer] = useState(true);
@@ -39,7 +37,6 @@ function DashboardAgentContent() {
 
   const user = useAuthStore((state) => state.user);
   const token = useAuthStore((state) => state.token);
-  const logout = useAuthStore((state) => state.logout);
 
   const isFirstLoadRef = useRef(true);
 
@@ -383,58 +380,14 @@ function DashboardAgentContent() {
 
   return (
     <div className="flex h-full w-full overflow-hidden bg-slate-50">
-      {/* TAB SWITCHER - ALWAYS VISIBLE */}
-      <div className="w-16 bg-neutral-900 flex flex-col items-center py-4 gap-2">
-        <button
-          onClick={() => {
-            setActiveTab("customer");
-            setShowCustomer(true);
-          }}
-          className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
-            activeTab === "customer"
-              ? "bg-white text-neutral-900 shadow-lg"
-              : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700"
-          }`}
-          title="Customer Chats"
-        >
-          <MessageSquare className="h-5 w-5" />
-        </button>
-        <button
-          onClick={() => {
-            setActiveTab("admin");
-            setShowCustomer(false);
-          }}
-          className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
-            activeTab === "admin"
-              ? "bg-white text-neutral-900 shadow-lg"
-              : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700"
-          }`}
-          title="Admin Chat"
-        >
-          <ShieldCheck className="h-5 w-5" />
-        </button>
-
-        {/* Ticket Queue Button */}
-        <button
-          onClick={() => router.push("/dashboard-agent-queue")}
-          className="w-12 h-12 rounded-xl flex items-center justify-center transition-all bg-neutral-800 text-neutral-400 hover:bg-blue-600 hover:text-white"
-          title="Ticket Queue - Ambil Ticket!"
-        >
-          <Ticket className="h-5 w-5" />
-        </button>
-
-        {/* Spacer */}
-        <div className="flex-1" />
-
-        {/* Logout Button */}
-        <button
-          onClick={logout}
-          className="w-12 h-12 rounded-xl flex items-center justify-center transition-all bg-neutral-800 text-neutral-400 hover:bg-red-600 hover:text-white"
-          title="Logout"
-        >
-          <LogOut className="h-5 w-5" />
-        </button>
-      </div>
+      {/* SIDEBAR */}
+      <AgentSidebar
+        activeTab={activeTab}
+        onTabChange={(tab) => {
+          setActiveTab(tab);
+          setShowCustomer(tab === "customer");
+        }}
+      />
 
       {/* CONTENT AREA - with conditional loading/error states */}
       {loading ? (

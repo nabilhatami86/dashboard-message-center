@@ -19,9 +19,16 @@ export function useSmartRefresh({
 }: SmartRefreshOptions) {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const currentIntervalRef = useRef(minInterval);
-  const lastActivityRef = useRef(Date.now());
-  const isVisibleRef = useRef(!document.hidden);
+  const lastActivityRef = useRef<number>(0);
+  const isVisibleRef = useRef(typeof document !== 'undefined' ? !document.hidden : true);
   const onRefreshRef = useRef(onRefresh);
+
+  // Initialize lastActivityRef only once
+  useEffect(() => {
+    if (lastActivityRef.current === 0) {
+      lastActivityRef.current = Date.now();
+    }
+  }, []);
 
   // Update ref setiap render (tapi tidak trigger re-run effect)
   useEffect(() => {

@@ -5,22 +5,22 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
+// import {
+//   DropdownMenu,
+//   DropdownMenuTrigger,
+//   DropdownMenuContent,
+//   DropdownMenuItem,
+//   DropdownMenuLabel,
+//   DropdownMenuSeparator,
+// } from "@/components/ui/dropdown-menu";
 import {
   Send,
-  Paperclip,
+  // Paperclip,
   MoreVertical,
   UserPlus,
   Check,
   CheckCheck,
-  ChevronDown,
+  // ChevronDown,
   Reply,
   Edit2,
   Trash2,
@@ -42,7 +42,6 @@ function ChatWindow({
   onSendMessage,
   onAssignAgent,
   onPauseChat,
-  onCustomerMessage,
   onOpenCustomer,
 }: ChatWindowProps) {
   const [message, setMessage] = useState("");
@@ -102,7 +101,11 @@ function ChatWindow({
   };
 
   const handleEndChat = () => {
-    if (window.confirm("Akhiri sesi chat ini? Customer akan kembali ke bot jika chat lagi.")) {
+    if (
+      window.confirm(
+        "Akhiri sesi chat ini? Customer akan kembali ke bot jika chat lagi."
+      )
+    ) {
       // Set ke closed untuk mengakhiri chat
       onPauseChat("closed");
     }
@@ -170,14 +173,15 @@ function ChatWindow({
           </div>
         </button>
 
-        <div className="flex gap-2">
+        <div className="flex gap-1">
           <Button
             size="sm"
             variant="outline"
             onClick={onAssignAgent}
             disabled={mode !== "bot"}
+            className="h-7 px-2 text-xs"
           >
-            <UserPlus className="h-4 w-4 mr-1" />
+            <UserPlus className="h-3 w-3 mr-1" />
             Assign
           </Button>
 
@@ -186,47 +190,18 @@ function ChatWindow({
             variant="outline"
             onClick={handleEndChat}
             disabled={isClosed || mode === "bot"}
-            className={isClosed ? "opacity-50" : ""}
+            className={`h-7 px-2 text-xs ${isClosed ? "opacity-50" : ""}`}
           >
-            <X className="h-4 w-4 mr-1" />
-            {isClosed ? "Selesai" : "End Chat"}
+            <X className="h-3 w-3 mr-1" />
+            {isClosed ? "Selesai" : "End"}
           </Button>
 
-          {/* SIMULASI CUSTOMER */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="icon" variant="ghost">
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Simulasi Customer</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {[
-                "Halo",
-                "Saya mau tanya harga",
-                "Pesanan saya sudah dikirim?",
-                "Saya ingin komplain",
-                "Terima kasih",
-              ].map((text) => (
-                <DropdownMenuItem
-                  key={text}
-                  onClick={() => onCustomerMessage(text)}
-                >
-                  {text}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <Button size="icon" variant="ghost">
-            <MoreVertical className="h-4 w-4" />
+          <Button size="icon" variant="ghost" className="h-7 w-7">
+            <MoreVertical className="h-3 w-3" />
           </Button>
         </div>
       </div>
 
-      {/* MESSAGES */}
       {/* MESSAGES */}
       <ScrollArea className="flex-1 min-h-0">
         <div className="p-6 space-y-4">
@@ -247,7 +222,8 @@ function ChatWindow({
                   ✅ Sesi Chat Berakhir
                 </div>
                 <p className="text-sm text-green-700">
-                  Terima kasih atas waktunya. Sesi chat telah selesai. Jika customer chat lagi, percakapan akan dimulai dari bot.
+                  Terima kasih atas waktunya. Sesi chat telah selesai. Jika
+                  customer chat lagi, percakapan akan dimulai dari bot.
                 </p>
               </div>
             </div>
@@ -347,14 +323,20 @@ function ChatWindow({
                 <>
                   <Edit2 className="h-4 w-4 text-blue-600" />
                   <span className="text-slate-700">
-                    Editing message: <span className="font-medium">{editingMessage.text.substring(0, 30)}...</span>
+                    Editing message:{" "}
+                    <span className="font-medium">
+                      {editingMessage.text.substring(0, 30)}...
+                    </span>
                   </span>
                 </>
               ) : replyTo ? (
                 <>
                   <Reply className="h-4 w-4 text-blue-600" />
                   <span className="text-slate-700">
-                    Replying to: <span className="font-medium">{replyTo.text.substring(0, 30)}...</span>
+                    Replying to:{" "}
+                    <span className="font-medium">
+                      {replyTo.text.substring(0, 30)}...
+                    </span>
                   </span>
                 </>
               ) : null}
