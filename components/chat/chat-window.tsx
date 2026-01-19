@@ -62,7 +62,6 @@ function ChatWindow({
 
     if (editingMessage) {
       // TODO: Implement edit message API
-      console.log("Edit message:", editingMessage.id, message);
       setEditingMessage(null);
     } else if (replyTo) {
       // Send with reply context
@@ -89,8 +88,8 @@ function ChatWindow({
 
   const handleDelete = (msg: Message) => {
     if (window.confirm("Hapus pesan ini?")) {
-      // TODO: Implement delete message API
-      console.log("Delete message:", msg.id);
+      // TODO: Implement delete message API for msg.id
+      void msg; // Suppress unused variable warning
     }
   };
 

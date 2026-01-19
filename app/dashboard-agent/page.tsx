@@ -218,7 +218,6 @@ function DashboardAgentContent() {
         token
       );
       // Backend akan kirim pesan ke WhatsApp
-      console.log("Message sent successfully to backend");
 
       // Mark activity untuk trigger fast refresh
       markChatActivity();
@@ -267,7 +266,6 @@ function DashboardAgentContent() {
     try {
       // Call backend API to update chat mode
       await updateChatMode(activeChatId, nextMode, token);
-      console.log(`Chat mode updated to: ${nextMode}`);
 
       // Refresh chats to get updated data from backend
       await loadChats();
@@ -323,7 +321,6 @@ function DashboardAgentContent() {
         },
         token
       );
-      console.log("Customer message sent successfully");
     } catch (err) {
       console.error("Failed to send customer message:", err);
       // Revert on error

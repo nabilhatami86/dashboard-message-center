@@ -145,7 +145,6 @@ function DashboardContent() {
         },
         token
       );
-      console.log("Customer message sent successfully");
     } catch (err) {
       console.error("Failed to send customer message:", err);
       // Revert on error
@@ -237,7 +236,6 @@ function DashboardContent() {
         },
         token
       );
-      console.log("Message sent successfully to backend");
 
       // Mark activity untuk trigger fast refresh
       markChatActivity();
@@ -280,7 +278,6 @@ function DashboardContent() {
     // Delete dari backend
     try {
       await deleteChat(chatId, token);
-      console.log("Chat deleted successfully");
     } catch (err) {
       console.error("Failed to delete chat:", err);
       alert("Failed to delete chat. Please try again.");
@@ -338,7 +335,6 @@ function DashboardContent() {
       await Promise.all(
         chatIdsToDelete.map((chatId) => deleteChat(chatId, token))
       );
-      console.log(`Successfully deleted ${chatIdsToDelete.length} chats`);
     } catch (err) {
       console.error("Failed to delete chats:", err);
       alert("Gagal menghapus beberapa chat. Halaman akan di-reload.");

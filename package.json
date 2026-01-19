@@ -1,6 +1,9 @@
 {
-  "name": "dashboard",
+  "name": "dashboard-message-center",
   "version": "0.1.0",
+  "description": "Customer service dashboard dengan real-time chat, ticketing system, dan agent monitoring",
+  "author": "Dashboard Team",
+  "license": "MIT",
   "private": true,
   "scripts": {
     "dev": "node server.js",

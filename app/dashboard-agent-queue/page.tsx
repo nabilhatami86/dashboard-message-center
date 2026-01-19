@@ -10,6 +10,7 @@ import { Clock, User, AlertCircle, CheckCircle, Zap, RefreshCw, MessageSquare } 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import AgentSidebar from "@/components/ui/agent-sidebar";
+import EmptyState from "@/components/ui/empty-state";
 
 export default function AgentQueuePage() {
   const router = useRouter();
@@ -226,13 +227,11 @@ export default function AgentQueuePage() {
 
           <div className="p-6">
             {availableTickets.length === 0 ? (
-              <div className="text-center py-12">
-                <CheckCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500 font-medium">Tidak ada ticket di queue saat ini</p>
-                <p className="text-sm text-gray-400 mt-2">
-                  Auto-refresh setiap 5 detik. Tunggu customer baru chat!
-                </p>
-              </div>
+              <EmptyState
+                icon="inbox"
+                title="Tidak ada ticket di queue"
+                description="Auto-refresh setiap 5 detik. Semua tickets sudah diambil atau belum ada customer yang chat. Tunggu customer baru!"
+              />
             ) : (
               <div className="space-y-4">
                 {availableTickets.map((ticket) => (

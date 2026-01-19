@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 import SimpleSidebar from "@/components/ui/app-sidebar";
+import EmptyState from "@/components/ui/empty-state";
 import {
   getAgentList,
   getTicketStats,
@@ -233,7 +234,17 @@ export default function AdminMonitoringPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200/60">
-                    {agents.map((agent) => {
+                    {agents.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-8 py-12">
+                          <EmptyState
+                            icon="user"
+                            title="No Agents Found"
+                            description="There are no agents registered in the system yet. Agents will appear here once they register and start handling tickets."
+                          />
+                        </td>
+                      </tr>
+                    ) : agents.map((agent) => {
                       const activeCount = getAgentTicketCount(agent.id, "assigned") + getAgentTicketCount(agent.id, "in_progress");
                       const inProgress = getAgentTicketCount(agent.id, "in_progress");
                       const resolved = getAgentTicketCount(agent.id, "resolved");
