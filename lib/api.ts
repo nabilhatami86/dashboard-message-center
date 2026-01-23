@@ -713,6 +713,74 @@ export async function getAgentProfile(
 }
 
 // =====================
+// WHATSAPP BAILEYS API
+// =====================
+const BAILEYS_URL = process.env.NEXT_PUBLIC_BAILEYS_URL || "http://localhost:3000";
+
+export interface WhatsAppStatus {
+  status: "disconnected" | "connecting" | "connected" | "qr_ready";
+  user: {
+    id: string;
+    name: string;
+    phone: string;
+  } | null;
+  hasQR: boolean;
+  qrTimestamp: number | null;
+  lastError: string | null;
+}
+
+export interface WhatsAppQR {
+  qrCode: string;
+  timestamp: number;
+  expiresIn: number;
+}
+
+export async function getWhatsAppStatus(): Promise<WhatsAppStatus> {
+  const response = await fetch(`${BAILEYS_URL}/wa/status`);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch WhatsApp status");
+  }
+
+  return response.json();
+}
+
+export async function getWhatsAppQR(): Promise<WhatsAppQR> {
+  const response = await fetch(`${BAILEYS_URL}/wa/qr`);
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.message || "QR code not available");
+  }
+
+  return response.json();
+}
+
+export async function reconnectWhatsApp(): Promise<{ success: boolean; message: string }> {
+  const response = await fetch(`${BAILEYS_URL}/wa/reconnect`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to reconnect WhatsApp");
+  }
+
+  return response.json();
+}
+
+export async function logoutWhatsApp(): Promise<{ success: boolean; message: string }> {
+  const response = await fetch(`${BAILEYS_URL}/wa/logout`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to logout WhatsApp");
+  }
+
+  return response.json();
+}
+
+// =====================
 // HELPER FUNCTIONS
 // =====================
 export function getToken(): string | null {

@@ -1,11 +1,11 @@
-const { createServer } = require('http');
-const { parse } = require('url');
-const next = require('next');
-const os = require('os');
+import { createServer } from "http";
+import { parse } from "url";
+import next from "next";
+import os from "os";
 
-const dev = process.env.NODE_ENV !== 'production';
-const hostname = '0.0.0.0';
-const port = process.env.PORT || 3000;
+const dev = process.env.NODE_ENV !== "production";
+const hostname = "0.0.0.0";
+const port = process.env.PORT || 8888;
 
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
@@ -18,11 +18,11 @@ function getNetworkInterfaces() {
   for (const name of Object.keys(nets)) {
     for (const net of nets[name]) {
       // Skip internal (localhost) and non-IPv4 addresses
-      const familyV4Value = typeof net.family === 'string' ? 'IPv4' : 4;
+      const familyV4Value = typeof net.family === "string" ? "IPv4" : 4;
       if (net.family === familyV4Value && !net.internal) {
         results.push({
           name: name,
-          address: net.address
+          address: net.address,
         });
       }
     }
@@ -37,29 +37,44 @@ app.prepare().then(() => {
       const parsedUrl = parse(req.url, true);
       await handle(req, res, parsedUrl);
     } catch (err) {
-      console.error('Error occurred handling', req.url, err);
+      console.error("Error occurred handling", req.url, err);
       res.statusCode = 500;
-      res.end('internal server error');
+      res.end("internal server error");
     }
   })
-    .once('error', (err) => {
+    .once("error", (err) => {
       console.error(err);
       process.exit(1);
     })
     .listen(port, hostname, () => {
-      console.log('\n' + '='.repeat(80));
-      console.log('🚀 NEXT.JS DASHBOARD STARTUP INFO');
-      console.log('='.repeat(80));
+      console.log(
+        "\x1b[36m" +
+          `
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                                                                              ║
+║   ███╗   ██╗███████╗██╗  ██╗████████╗     ██╗███████╗                       ║
+║   ████╗  ██║██╔════╝╚██╗██╔╝╚══██╔══╝     ██║██╔════╝                       ║
+║   ██╔██╗ ██║█████╗   ╚███╔╝    ██║        ██║███████╗                       ║
+║   ██║╚██╗██║██╔══╝   ██╔██╗    ██║        ██║╚════██║                       ║
+║   ██║ ╚████║███████╗██╔╝ ██╗   ██║        ██║███████║                       ║
+║   ╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝   ╚═╝        ╚═╝╚══════╝                       ║
+║                                                                              ║
+║                🚀  N E X T . J S   D A S H B O A R D   S T A R T U P          ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+` +
+          "\x1b[0m",
+      );
 
       // Time info
       const now = new Date();
-      console.log(`⏰ Started at: ${now.toLocaleString('id-ID')}`);
+      console.log(`⏰ Started at: ${now.toLocaleString("id-ID")}`);
 
       // Project info
       console.log(`\n📦 Project: Dashboard Message Center`);
       console.log(`📂 Working Directory: ${process.cwd()}`);
-      console.log(`🔧 Environment: ${dev ? 'Development' : 'Production'}`);
-      console.log(`⚡ Mode: Turbopack ${dev ? 'Enabled' : 'Disabled'}`);
+      console.log(`🔧 Environment: ${dev ? "Development" : "Production"}`);
+      console.log(`⚡ Mode: Turbopack ${dev ? "Enabled" : "Disabled"}`);
 
       // Network interfaces
       console.log(`\n🌐 AVAILABLE NETWORK INTERFACES:`);
@@ -70,7 +85,7 @@ app.prepare().then(() => {
       if (interfaces.length > 0) {
         interfaces.forEach((iface, index) => {
           const isLast = index === interfaces.length - 1;
-          const prefix = isLast ? '   └─' : '   ├─';
+          const prefix = isLast ? "   └─" : "   ├─";
           console.log(`${prefix} ${iface.name.padEnd(10)}: http://${iface.address}:${port}`);
         });
       } else {
@@ -94,21 +109,21 @@ app.prepare().then(() => {
       // Pages
       console.log(`\n📄 AVAILABLE PAGES:`);
       const pages = [
-        { path: '/login', desc: 'Login page' },
-        { path: '/dashboard-admin', desc: 'Admin dashboard' },
-        { path: '/dashboard-admin-monitoring', desc: 'Monitoring dashboard' },
-        { path: '/dashboard-agent', desc: 'Agent dashboard' },
-        { path: '/dashboard-agent-queue', desc: 'Agent ticket queue' },
+        { path: "/login", desc: "Login page" },
+        { path: "/dashboard-admin", desc: "Admin dashboard" },
+        { path: "/dashboard-admin-monitoring", desc: "Monitoring dashboard" },
+        { path: "/dashboard-agent", desc: "Agent dashboard" },
+        { path: "/dashboard-agent-queue", desc: "Agent ticket queue" },
       ];
 
       pages.forEach((page, index) => {
         const isLast = index === pages.length - 1;
-        const prefix = isLast ? '   └─' : '   ├─';
+        const prefix = isLast ? "   └─" : "   ├─";
         console.log(`${prefix} ${page.path.padEnd(30)} → ${page.desc}`);
       });
 
-      console.log(`\n${'='.repeat(80)}`);
-      console.log('✅ READY TO ACCEPT CONNECTIONS');
-      console.log('='.repeat(80) + '\n');
+      console.log(`\n${"=".repeat(80)}`);
+      console.log("✅ READY TO ACCEPT CONNECTIONS");
+      console.log("=".repeat(80) + "\n");
     });
 });

@@ -7,6 +7,7 @@ import {
   UserCheck,
   Clock,
   BarChart3,
+  Smartphone,
   // LogOut,
   ChevronLeft,
   ChevronRight,
@@ -23,7 +24,7 @@ interface SidebarProps {
   onSelectFilter?: (filter: "all" | "assigned" | "unassigned") => void;
 }
 
-type MenuKey = "all" | "assigned" | "unassigned" | "dashboard";
+type MenuKey = "all" | "assigned" | "unassigned" | "dashboard" | "whatsapp";
 
 export default function SimpleSidebar({ onSelectFilter }: SidebarProps) {
   const router = useRouter();
@@ -34,6 +35,8 @@ export default function SimpleSidebar({ onSelectFilter }: SidebarProps) {
   const initialActive = useMemo((): MenuKey => {
     if (pathname === "/dashboard-admin-monitoring") {
       return "dashboard";
+    } else if (pathname === "/dashboard-admin/whatsapp") {
+      return "whatsapp";
     } else if (pathname === "/dashboard-admin") {
       return "all";
     }
@@ -104,6 +107,13 @@ export default function SimpleSidebar({ onSelectFilter }: SidebarProps) {
       count: countUnassigned,
       isLink: true,
       href: "/dashboard-admin",
+    },
+    {
+      key: "whatsapp" as const,
+      label: "WhatsApp",
+      icon: <Smartphone className="h-5 w-5" />,
+      isLink: true,
+      href: "/dashboard-admin/whatsapp",
     },
   ];
 
