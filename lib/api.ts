@@ -66,6 +66,10 @@ export interface ChatResponse {
   online: boolean;
   unread_count: number;
   assigned_agent_id?: number;
+  assigned_agent?: {
+    id: number;
+    name: string;
+  } | null;
   last_message_at: string;
   created_at: string;
   updated_at: string;

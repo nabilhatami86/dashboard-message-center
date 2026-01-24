@@ -62,6 +62,7 @@ export function transformChatResponse(
     // Ticket queue fields
     phone: chat.customer_phone,
     lastMessageAt: chat.last_message_at,
+    assignedAgent: chat.assigned_agent,
   };
 }
 

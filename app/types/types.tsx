@@ -65,4 +65,8 @@ export interface Chat {
   /** ticket queue fields */
   phone?: string;
   lastMessageAt?: string;
+  assignedAgent?: {
+    id: number;
+    name: string;
+  } | null;
 }

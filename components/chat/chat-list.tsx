@@ -188,9 +188,19 @@ function ChatList({
                   </Avatar>
 
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate text-neutral-900">
-                      {chat.name ?? "Unknown"}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium truncate text-neutral-900">
+                        {chat.name ?? "Unknown"}
+                      </p>
+                      {chat.assignedAgent && (
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] px-1.5 py-0 h-4 bg-blue-100 text-blue-700 border-0"
+                        >
+                          {chat.assignedAgent.name}
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-xs truncate text-neutral-500">
                       {lastMessage?.text ?? "Belum ada pesan"}
                     </p>
