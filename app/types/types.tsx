@@ -69,4 +69,8 @@ export interface Chat {
     id: number;
     name: string;
   } | null;
+
+  /** group information (for WhatsApp group chats) */
+  group_id?: string | null;
+  group_name?: string | null;
 }

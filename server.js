@@ -5,7 +5,7 @@ import os from "os";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = "0.0.0.0";
-const port = process.env.PORT || 8888;
+const port = process.env.PORT || 9999;
 
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();

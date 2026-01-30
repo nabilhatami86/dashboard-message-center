@@ -257,6 +257,11 @@ export default function AgentQueuePage() {
                           <div className="flex items-center gap-3 mb-2">
                             <h3 className="text-lg font-bold text-gray-900">
                               {ticket.name || "Unknown Customer"}
+                              {ticket.group_id ? (
+                                <span className="text-sm font-normal text-blue-600"> - Grup</span>
+                              ) : (
+                                <span className="text-sm font-normal text-green-600"> - Pribadi</span>
+                              )}
                             </h3>
                             <Badge variant="secondary">{ticket.channel}</Badge>
                             <Badge variant="outline">
