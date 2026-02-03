@@ -190,19 +190,41 @@ function ChatList({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="font-medium truncate text-neutral-900">
-                        {chat.name ?? "Unknown"}
+                        {/* Nama participant (untuk grup) atau customer (untuk pribadi) */}
+                        {chat.name || "Unknown"}
                       </p>
-                      {chat.assignedAgent && (
+                      {chat.group_id ? (
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] px-1.5 py-0 h-4 bg-green-100 text-green-700 border-0"
+                        >
+                          Grup
+                        </Badge>
+                      ) : (
                         <Badge
                           variant="secondary"
                           className="text-[10px] px-1.5 py-0 h-4 bg-blue-100 text-blue-700 border-0"
+                        >
+                          Pribadi
+                        </Badge>
+                      )}
+                      {chat.assignedAgent && (
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] px-1.5 py-0 h-4 bg-purple-100 text-purple-700 border-0"
                         >
                           {chat.assignedAgent.name}
                         </Badge>
                       )}
                     </div>
+                    {/* Untuk grup: tampilkan nama grup di bawah */}
+                    {chat.group_id && chat.group_name && (
+                      <p className="text-xs text-green-600 truncate">
+                        Dari: {chat.group_name}
+                      </p>
+                    )}
                     <p className="text-xs truncate text-neutral-500">
-                      {lastMessage?.text ?? "Belum ada pesan"}
+                      {lastMessage ? lastMessage.text : "Belum ada pesan"}
                     </p>
                   </div>
 

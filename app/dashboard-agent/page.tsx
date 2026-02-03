@@ -258,31 +258,40 @@ function DashboardAgentContent() {
   const handlePauseChat = async (nextMode: Chat["mode"]) => {
     if (!activeChat || !token || !activeChatId || !nextMode) return;
 
-    // Optimistic update - update UI immediately
-    setChats((prev) =>
-      prev.map((c) => (c.id === activeChatId ? { ...c, mode: nextMode } : c))
-    );
+    // SPECIAL: When closing chat, remove it from list immediately
+    if (nextMode === "closed") {
+      // Optimistic: remove chat from list
+      setChats((prev) => prev.filter((c) => c.id !== activeChatId));
+      // Deselect active chat
+      setActiveChatId(null);
+    } else {
+      // Optimistic update - update UI immediately
+      setChats((prev) =>
+        prev.map((c) => (c.id === activeChatId ? { ...c, mode: nextMode } : c))
+      );
+    }
 
     try {
       // Call backend API to update chat mode
       await updateChatMode(activeChatId, nextMode, token);
 
-      // Refresh chats to get updated data from backend
-      await loadChats();
-
-      // Mark activity untuk trigger fast refresh
-      markChatActivity();
+      // Only refresh chats if NOT closing (closed chat is already removed from list)
+      if (nextMode !== "closed") {
+        await loadChats();
+        markChatActivity();
+      }
     } catch (err) {
       console.error("Failed to update chat mode:", err);
 
-      // Revert optimistic update if failed
-      setChats((prev) =>
-        prev.map((c) =>
-          c.id === activeChatId ? { ...c, mode: activeChat.mode } : c
-        )
-      );
-
-      alert("Failed to update chat status. Please try again.");
+      // Revert optimistic update if failed (only for non-closed modes)
+      if (nextMode !== "closed") {
+        setChats((prev) =>
+          prev.map((c) =>
+            c.id === activeChatId ? { ...c, mode: activeChat.mode } : c
+          )
+        );
+        alert("Failed to update chat status. Please try again.");
+      }
     }
   };
   const handleCustomerMessage = async (chatId: number, text: string) => {

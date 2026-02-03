@@ -63,6 +63,10 @@ export function transformChatResponse(
     phone: chat.customer_phone,
     lastMessageAt: chat.last_message_at,
     assignedAgent: chat.assigned_agent,
+
+    // Group information (for WhatsApp group chats)
+    group_id: chat.group_id,
+    group_name: chat.group_name,
   };
 }
 
@@ -78,6 +82,9 @@ export function transformMessageResponse(
     sender: message.sender,
     time: pickFirst(message.time, formatTime(message.created_at))!,
     status: pickFirst(message.status, "sent"),
+    // For group messages: info about who sent the message
+    participant_phone: message.participant_phone,
+    participant_name: message.participant_name,
   };
 }
 

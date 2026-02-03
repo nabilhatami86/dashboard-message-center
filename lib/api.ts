@@ -74,6 +74,9 @@ export interface ChatResponse {
   created_at: string;
   updated_at: string;
   messages: MessageResponse[];
+  // Group information (for WhatsApp group chats)
+  group_id?: string | null;
+  group_name?: string | null;
 }
 
 export interface MessageResponse {
@@ -84,6 +87,9 @@ export interface MessageResponse {
   status: "sent" | "read";
   agent_id?: number;
   created_at: string;
+  // For group messages: info about who sent the message
+  participant_phone?: string | null;
+  participant_name?: string | null;
 }
 
 export async function getChats(token: string): Promise<ChatResponse[]> {
@@ -104,6 +110,10 @@ export async function getChats(token: string): Promise<ChatResponse[]> {
     chatList.map(async (chat: { id: number }) => {
       try {
         const detailedChat = await getChatById(chat.id, token);
+        // Chat was deleted/closed - skip it
+        if (!detailedChat) {
+          return null;
+        }
         return detailedChat;
       } catch (error) {
         console.error(`Failed to fetch messages for chat ${chat.id}:`, error);
@@ -113,13 +123,14 @@ export async function getChats(token: string): Promise<ChatResponse[]> {
     })
   );
 
-  return chatsWithMessages;
+  // Filter out null (deleted chats)
+  return chatsWithMessages.filter((chat): chat is ChatResponse => chat !== null);
 }
 
 export async function getChatById(
   chatId: number,
   token?: string
-): Promise<ChatResponse> {
+): Promise<ChatResponse | null> {
   const headers: HeadersInit = {};
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
@@ -128,6 +139,11 @@ export async function getChatById(
   const response = await fetch(`${API_BASE_URL}/chats/${chatId}`, {
     headers,
   });
+
+  // Handle 404 gracefully - chat might have been deleted/closed
+  if (response.status === 404) {
+    return null;
+  }
 
   if (!response.ok) {
     throw new Error("Failed to fetch chat");

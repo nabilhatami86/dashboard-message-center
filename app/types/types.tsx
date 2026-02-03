@@ -21,6 +21,9 @@ export interface Message {
   sender_name?: string;
   time: string;
   status?: MessageStatus;
+  /** For group messages: info about who sent the message */
+  participant_phone?: string | null;
+  participant_name?: string | null;
 }
 
 /* =====================

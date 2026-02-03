@@ -254,15 +254,16 @@ export default function AgentQueuePage() {
 
                         {/* Details */}
                         <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
+                          <div className="flex items-center gap-3 mb-2 flex-wrap">
                             <h3 className="text-lg font-bold text-gray-900">
+                              {/* Nama participant (untuk grup) atau customer (untuk pribadi) */}
                               {ticket.name || "Unknown Customer"}
-                              {ticket.group_id ? (
-                                <span className="text-sm font-normal text-blue-600"> - Grup</span>
-                              ) : (
-                                <span className="text-sm font-normal text-green-600"> - Pribadi</span>
-                              )}
                             </h3>
+                            {ticket.group_id ? (
+                              <Badge className="bg-green-100 text-green-700 border-0">Grup</Badge>
+                            ) : (
+                              <Badge className="bg-blue-100 text-blue-700 border-0">Pribadi</Badge>
+                            )}
                             <Badge variant="secondary">{ticket.channel}</Badge>
                             <Badge variant="outline">
                               {ticket.mode?.toUpperCase() || "BOT"}
@@ -270,10 +271,22 @@ export default function AgentQueuePage() {
                           </div>
 
                           <div className="space-y-1 text-sm text-gray-600">
-                            <p className="flex items-center gap-2">
-                              <span className="font-medium">Phone:</span>
-                              <span>{ticket.phone || "-"}</span>
-                            </p>
+                            {/* Untuk grup: tampilkan nama grup */}
+                            {ticket.group_id && (
+                              <p className="flex items-center gap-2">
+                                <span className="font-medium">Dari grup:</span>
+                                <span className="text-green-600 font-semibold">
+                                  {ticket.group_name || "Unknown Group"}
+                                </span>
+                              </p>
+                            )}
+                            {/* Untuk pribadi: tampilkan phone */}
+                            {!ticket.group_id && (
+                              <p className="flex items-center gap-2">
+                                <span className="font-medium">Phone:</span>
+                                <span>{ticket.phone || "-"}</span>
+                              </p>
+                            )}
                             <p className="flex items-center gap-2">
                               <Clock className="w-4 h-4" />
                               <span>Waiting: {ticket.lastMessageAt ? getWaitTime(ticket.lastMessageAt) : "Unknown"}</span>

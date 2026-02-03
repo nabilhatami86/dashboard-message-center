@@ -154,9 +154,25 @@ function ChatWindow({
           </Avatar>
 
           <div>
-            <p className="font-semibold">{chat.name ?? "Unknown"}</p>
-            <div className="flex gap-2 mt-1">
+            <p className="font-semibold">
+              {/* Nama participant (untuk grup) atau customer (untuk pribadi) */}
+              {chat.name || "Unknown"}
+            </p>
+            {/* Untuk grup: tampilkan nama grup di bawah */}
+            {chat.group_id && chat.group_name && (
+              <p className="text-xs text-green-600">Dari: {chat.group_name}</p>
+            )}
+            <div className="flex gap-2 mt-1 flex-wrap">
               <Badge variant="secondary">{chat.channel}</Badge>
+              {chat.group_id ? (
+                <Badge variant="secondary" className="bg-green-100 text-green-700 border-0">
+                  Grup
+                </Badge>
+              ) : (
+                <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-0">
+                  Pribadi
+                </Badge>
+              )}
               <Badge
                 variant={
                   mode === "bot"
@@ -278,6 +294,12 @@ function ChatWindow({
                       fromAgent ? "bg-blue-500 text-white" : "bg-slate-100"
                     }`}
                   >
+                    {/* Show participant name for group chats (customer messages only) */}
+                    {!fromAgent && chat.group_id && (msg.participant_name || msg.participant_phone) && (
+                      <p className="text-xs font-semibold text-blue-600 mb-1">
+                        {msg.participant_name || msg.participant_phone}
+                      </p>
+                    )}
                     <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
                     <div className="flex items-center justify-end gap-1 text-xs mt-1 opacity-70">
                       <span>{msg.time}</span>

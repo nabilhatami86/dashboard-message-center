@@ -19,6 +19,7 @@ import {
   AgentUser,
   getAdminChat,
   sendAdminMessage,
+  updateChatMode,
 } from "@/lib/api";
 import {
   transformChatResponse,
@@ -180,15 +181,42 @@ function DashboardContent() {
 
   // ================= PAUSE / RESUME =================
   const handlePauseChat = async (nextMode: Chat["mode"]) => {
-    if (!activeChat || !token) return;
+    if (!activeChat || !token || !activeChatId) return;
 
-    // Optimistic update
-    setChats((prev) =>
-      prev.map((c) => (c.id === activeChatId ? { ...c, mode: nextMode } : c))
-    );
+    // SPECIAL: When closing chat, remove it from list immediately
+    if (nextMode === "closed") {
+      // Optimistic: remove chat from list
+      setChats((prev) => prev.filter((c) => c.id !== activeChatId));
+      // Deselect active chat
+      setActiveChatId(null);
+    } else {
+      // Optimistic update
+      setChats((prev) =>
+        prev.map((c) => (c.id === activeChatId ? { ...c, mode: nextMode } : c))
+      );
+    }
 
-    // TODO: Call backend API to update chat mode
-    // await updateChatMode(activeChatId, nextMode, token);
+    try {
+      // Call backend API to update chat mode
+      await updateChatMode(activeChatId, nextMode, token);
+
+      // Only refresh chats if NOT closing (closed chat is already removed from list)
+      if (nextMode !== "closed") {
+        await loadChats();
+      }
+    } catch (err) {
+      console.error("Failed to update chat mode:", err);
+
+      // Revert optimistic update if failed (only for non-closed modes)
+      if (nextMode !== "closed") {
+        setChats((prev) =>
+          prev.map((c) =>
+            c.id === activeChatId ? { ...c, mode: activeChat.mode } : c
+          )
+        );
+        alert("Failed to update chat status. Please try again.");
+      }
+    }
   };
 
   // ================= AGENT/ADMIN SEND MESSAGE =================

@@ -162,6 +162,12 @@ export default function ChatWindowAgent({
                       : "bg-white text-neutral-900 border rounded-bl-md"
                   }`}
                 >
+                  {/* Show participant name for group chats (customer messages only) */}
+                  {!fromAgent && chat.group_id && (msg.participant_name || msg.participant_phone) && (
+                    <p className="text-xs font-semibold text-blue-600 mb-1">
+                      {msg.participant_name || msg.participant_phone}
+                    </p>
+                  )}
                   <p className="text-sm leading-relaxed whitespace-pre-wrap">
                     {msg.text}
                   </p>
