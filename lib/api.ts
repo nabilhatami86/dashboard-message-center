@@ -801,6 +801,111 @@ export async function logoutWhatsApp(): Promise<{ success: boolean; message: str
 }
 
 // =====================
+// SHORTCUT MESSAGE API
+// =====================
+export interface ShortcutMessageResponse {
+  id: number;
+  key: string;
+  values: string;
+  created_by: number;
+  creator_name?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function getShortcuts(token: string): Promise<ShortcutMessageResponse[]> {
+  const response = await fetch(`${API_BASE_URL}/shortcuts/`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch shortcuts");
+  }
+
+  return response.json();
+}
+
+export async function searchShortcuts(
+  query: string,
+  token: string
+): Promise<ShortcutMessageResponse[]> {
+  const response = await fetch(
+    `${API_BASE_URL}/shortcuts/search?q=${encodeURIComponent(query)}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to search shortcuts");
+  }
+
+  return response.json();
+}
+
+export async function createShortcut(
+  data: { key: string; values: string },
+  token: string
+): Promise<ShortcutMessageResponse> {
+  const response = await fetch(`${API_BASE_URL}/shortcuts/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail || "Failed to create shortcut");
+  }
+
+  return response.json();
+}
+
+export async function updateShortcut(
+  shortcutId: number,
+  data: { key?: string; values?: string },
+  token: string
+): Promise<ShortcutMessageResponse> {
+  const response = await fetch(`${API_BASE_URL}/shortcuts/${shortcutId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to update shortcut");
+  }
+
+  return response.json();
+}
+
+export async function deleteShortcut(
+  shortcutId: number,
+  token: string
+): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/shortcuts/${shortcutId}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to delete shortcut");
+  }
+}
+
+// =====================
 // HELPER FUNCTIONS
 // =====================
 export function getToken(): string | null {

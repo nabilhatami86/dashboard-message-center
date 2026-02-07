@@ -6,6 +6,7 @@ import AdminChatWindow from "@/components/chat/admin-chat-window";
 import CustomerDetail from "@/components/customer/customer-detail";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import ChatWindow from "@/components/chat/chat-window";
+import ShortcutManager from "@/components/chat/shortcut-manager";
 import { Chat, AdminChat } from "@/app/types/types";
 import { useAuthStore } from "@/store/authStore";
 import AgentSidebar from "@/components/ui/agent-sidebar";
@@ -26,7 +27,7 @@ function DashboardAgentContent() {
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChatId, setActiveChatId] = useState<number | null>(null);
   const [showCustomer, setShowCustomer] = useState(true);
-  const [activeTab, setActiveTab] = useState<"customer" | "admin">("customer");
+  const [activeTab, setActiveTab] = useState<"customer" | "admin" | "shortcuts">("customer");
   const [adminChat, setAdminChat] = useState<AdminChat>({
     id: 0,
     mode: "bot",
@@ -475,12 +476,15 @@ function DashboardAgentContent() {
               </div>
             )}
           </>
-        ) : (
+        ) : activeTab === "admin" ? (
           /* ADMIN CHAT WINDOW */
           <AdminChatWindow
             adminChat={adminChat}
             onSendMessage={handleSendAdminMessage}
           />
+        ) : (
+          /* SHORTCUT MANAGER */
+          <ShortcutManager />
         )}
         </div>
       )}

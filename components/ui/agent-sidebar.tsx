@@ -6,6 +6,7 @@ import {
   ShieldCheck,
   LogOut,
   Ticket,
+  Zap,
   Menu,
   X,
 } from "lucide-react";
@@ -14,8 +15,8 @@ import { useAuthStore } from "@/store/authStore";
 import ThemeSwitcher from "./theme-switcher";
 
 interface AgentSidebarProps {
-  activeTab: "customer" | "admin";
-  onTabChange: (tab: "customer" | "admin") => void;
+  activeTab: "customer" | "admin" | "shortcuts";
+  onTabChange: (tab: "customer" | "admin" | "shortcuts") => void;
 }
 
 export default function AgentSidebar({
@@ -46,6 +47,16 @@ export default function AgentSidebar({
         setIsOpen(false);
       },
       isActive: activeTab === "admin",
+    },
+    {
+      id: "shortcuts" as const,
+      icon: Zap,
+      label: "Shortcuts",
+      onClick: () => {
+        onTabChange("shortcuts");
+        setIsOpen(false);
+      },
+      isActive: activeTab === "shortcuts",
     },
     {
       id: "queue",

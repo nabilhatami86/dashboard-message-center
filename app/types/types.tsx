@@ -77,3 +77,16 @@ export interface Chat {
   group_id?: string | null;
   group_name?: string | null;
 }
+
+/* =====================
+ * SHORTCUT MESSAGE
+ * ===================== */
+export interface ShortcutMessage {
+  id: number;
+  key: string;
+  values: string;
+  created_by: number;
+  creator_name?: string;
+  created_at: string;
+  updated_at: string;
+}

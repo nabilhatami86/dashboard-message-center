@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, memo } from "react";
+import { useState, useEffect, useRef, useCallback, memo } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -25,8 +25,11 @@ import {
   Edit2,
   Trash2,
   X,
+  Zap,
 } from "lucide-react";
-import { Chat, Message, ChatMode } from "@/app/types/types";
+import { Chat, Message, ChatMode, ShortcutMessage } from "@/app/types/types";
+import { getShortcuts } from "@/lib/api";
+import { useAuthStore } from "@/store/authStore";
 
 interface ChatWindowProps {
   chat: Chat;
@@ -48,6 +51,14 @@ function ChatWindow({
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Shortcut inline dropdown state
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const [allShortcuts, setAllShortcuts] = useState<ShortcutMessage[]>([]);
+  const [selectedIdx, setSelectedIdx] = useState(0);
+  const [shortcutsLoaded, setShortcutsLoaded] = useState(false);
+  const token = useAuthStore((s) => s.token);
 
   /** mode aman (fallback) */
   const mode: ChatMode = chat.mode ?? "bot";
@@ -98,6 +109,58 @@ function ChatWindow({
     setEditingMessage(null);
     setMessage("");
   };
+
+  // Load shortcuts from API (once)
+  const loadShortcuts = useCallback(async () => {
+    if (!token || shortcutsLoaded) return;
+    try {
+      const data = await getShortcuts(token);
+      setAllShortcuts(data);
+      setShortcutsLoaded(true);
+    } catch {
+      // silently fail
+    }
+  }, [token, shortcutsLoaded]);
+
+  // Filter shortcuts based on what user typed after "/"
+  const filteredShortcuts = allShortcuts.filter((sc) => {
+    if (!message.startsWith("/")) return true; // show all when opened via button
+    const typed = message.toLowerCase();
+    return (
+      sc.key.toLowerCase().includes(typed) ||
+      sc.values.toLowerCase().includes(typed)
+    );
+  });
+
+  // Open inline dropdown
+  const openShortcutList = useCallback(() => {
+    loadShortcuts();
+    setSelectedIdx(0);
+    setShowShortcuts(true);
+  }, [loadShortcuts]);
+
+  // Handle textarea change — show list when "/" is typed
+  const handleMessageChange = useCallback(
+    (value: string) => {
+      setMessage(value);
+      if (value.startsWith("/")) {
+        openShortcutList();
+      } else {
+        setShowShortcuts(false);
+      }
+    },
+    [openShortcutList]
+  );
+
+  // Pick a shortcut
+  const selectShortcut = useCallback(
+    (shortcut: ShortcutMessage) => {
+      setMessage(shortcut.values);
+      setShowShortcuts(false);
+      textareaRef.current?.focus();
+    },
+    []
+  );
 
   const handleEndChat = () => {
     if (
@@ -373,12 +436,99 @@ function ChatWindow({
           </div>
         )}
 
-        <div className="p-4 flex gap-2">
+        {/* Inline shortcut list — muncul di atas textarea */}
+        {showShortcuts && filteredShortcuts.length > 0 && (
+          <div className="mx-4 mt-2 border rounded-lg shadow-lg bg-white max-h-52 overflow-y-auto">
+            <div className="px-3 py-1.5 text-xs text-slate-400 border-b flex items-center gap-1 sticky top-0 bg-white">
+              <Zap className="h-3 w-3" />
+              Pilih Shortcut
+            </div>
+            {filteredShortcuts.map((sc, idx) => (
+              <button
+                key={sc.id}
+                type="button"
+                className={`w-full text-left px-3 py-2 border-b last:border-b-0 transition-colors ${
+                  idx === selectedIdx
+                    ? "bg-blue-50"
+                    : "hover:bg-slate-50"
+                }`}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  selectShortcut(sc);
+                }}
+                onMouseEnter={() => setSelectedIdx(idx)}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono font-semibold text-blue-600 text-sm">
+                    {sc.key}
+                  </span>
+                  <span className="text-xs text-slate-400 shrink-0">
+                    {sc.creator_name || `User #${sc.created_by}`}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 truncate mt-0.5">
+                  {sc.values}
+                </p>
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="p-4 flex gap-2 items-end">
+          {/* Shortcut Button */}
+          <Button
+            size="icon"
+            variant="outline"
+            onClick={() => {
+              if (showShortcuts) {
+                setShowShortcuts(false);
+              } else {
+                setMessage("/");
+                openShortcutList();
+              }
+            }}
+            disabled={disabled || !isAgent}
+            title="Shortcut Messages"
+            className="shrink-0"
+          >
+            <Zap className="h-5 w-5" />
+          </Button>
+
           <textarea
+            ref={textareaRef}
             value={message}
             disabled={disabled || !isAgent}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={(e) => handleMessageChange(e.target.value)}
             onKeyDown={(e) => {
+              // Keyboard navigation for shortcut list
+              if (showShortcuts && filteredShortcuts.length > 0) {
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setSelectedIdx((prev) =>
+                    prev < filteredShortcuts.length - 1 ? prev + 1 : 0
+                  );
+                  return;
+                }
+                if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setSelectedIdx((prev) =>
+                    prev > 0 ? prev - 1 : filteredShortcuts.length - 1
+                  );
+                  return;
+                }
+                if (e.key === "Enter" || e.key === "Tab") {
+                  e.preventDefault();
+                  selectShortcut(filteredShortcuts[selectedIdx]);
+                  return;
+                }
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  setShowShortcuts(false);
+                  setMessage("");
+                  return;
+                }
+              }
+
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 handleSend();
@@ -389,7 +539,7 @@ function ChatWindow({
             }}
             placeholder={
               isClosed
-                ? "Sesi chat sudah selesai. Chat baru dari customer akan mulai dari bot."
+                ? "Sesi chat sudah selesai."
                 : isPaused
                 ? "Chat sedang dijeda sementara."
                 : !isAgent
@@ -398,7 +548,7 @@ function ChatWindow({
                 ? "Edit your message..."
                 : replyTo
                 ? "Type your reply..."
-                : "Tulis pesan..."
+                : 'Tulis pesan... (ketik "/" untuk shortcut)'
             }
             className="flex-1 resize-none rounded-lg border px-3 py-2"
             rows={3}
@@ -408,6 +558,7 @@ function ChatWindow({
             size="icon"
             onClick={handleSend}
             disabled={!message.trim() || !isAgent || disabled}
+            className="shrink-0"
           >
             <Send className="h-5 w-5" />
           </Button>
