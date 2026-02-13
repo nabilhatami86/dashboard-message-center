@@ -82,6 +82,10 @@ export function transformMessageResponse(
     sender: message.sender,
     time: pickFirst(message.time, formatTime(message.created_at))!,
     status: pickFirst(message.status, "sent"),
+    // Media attachment fields
+    media_url: message.media_url,
+    media_type: message.media_type,
+    media_filename: message.media_filename,
     // For group messages: info about who sent the message
     participant_phone: message.participant_phone,
     participant_name: message.participant_name,
