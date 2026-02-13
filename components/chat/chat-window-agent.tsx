@@ -5,12 +5,25 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Send, Paperclip, CheckCheck, Check, X } from "lucide-react";
+import {
+  Send,
+  Paperclip,
+  CheckCheck,
+  Check,
+  X,
+  FileText,
+  Download,
+  Loader2,
+} from "lucide-react";
 import { Chat, Message, ChatMode } from "@/app/types/types";
+import { uploadFile, UploadResponse } from "@/lib/api";
+import { useAuthStore } from "@/store/authStore";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 interface Props {
   chat: Chat;
-  onSendMessage: (text: string) => void;
+  onSendMessage: (text: string, media?: { media_url: string; media_type: string; media_filename: string }) => void;
   onEndChat?: (mode: ChatMode) => void;
   onOpenCustomer?: () => void;
 }
@@ -23,6 +36,13 @@ export default function ChatWindowAgent({
 }: Props) {
   const [message, setMessage] = useState("");
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const token = useAuthStore((s) => s.token);
+
+  // Media attachment state
+  const [pendingMedia, setPendingMedia] = useState<UploadResponse | null>(null);
+  const [mediaPreviewUrl, setMediaPreviewUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const mode: ChatMode = chat.mode ?? "bot";
   const isClosed = mode === "closed";
@@ -34,9 +54,45 @@ export default function ChatWindowAgent({
   }, [chat.messages.length]);
 
   const handleSend = () => {
-    if (!message.trim() || disabled) return;
-    onSendMessage(message.trim());
+    if ((!message.trim() && !pendingMedia) || disabled) return;
+
+    const mediaPayload = pendingMedia
+      ? { media_url: pendingMedia.media_url, media_type: pendingMedia.media_type, media_filename: pendingMedia.media_filename }
+      : undefined;
+
+    onSendMessage(
+      message.trim() || (pendingMedia ? `[${pendingMedia.media_type === "image" ? "Image" : "File"}]` : ""),
+      mediaPayload
+    );
     setMessage("");
+    clearPendingMedia();
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !token) return;
+
+    setIsUploading(true);
+    try {
+      const result = await uploadFile(file, token);
+      setPendingMedia(result);
+      if (result.media_type === "image") {
+        setMediaPreviewUrl(URL.createObjectURL(file));
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Upload gagal");
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const clearPendingMedia = () => {
+    setPendingMedia(null);
+    if (mediaPreviewUrl) {
+      URL.revokeObjectURL(mediaPreviewUrl);
+      setMediaPreviewUrl(null);
+    }
   };
 
   const handleEndChat = () => {
@@ -168,9 +224,60 @@ export default function ChatWindowAgent({
                       {msg.participant_name || msg.participant_phone}
                     </p>
                   )}
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                    {msg.text}
-                  </p>
+
+                  {/* Media attachment rendering */}
+                  {msg.media_url && msg.media_type === "image" && (
+                    <a
+                      href={`${API_BASE_URL}${msg.media_url}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block mb-2"
+                    >
+                      <img
+                        src={`${API_BASE_URL}${msg.media_url}`}
+                        alt={msg.media_filename || "Image"}
+                        className="rounded-lg max-w-full max-h-64 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                        loading="lazy"
+                      />
+                    </a>
+                  )}
+                  {msg.media_url && msg.media_type === "document" && (
+                    <a
+                      href={`${API_BASE_URL}${msg.media_url}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`flex items-center gap-2 mb-2 p-2 rounded-lg ${
+                        fromAgent ? "bg-white/10 hover:bg-white/20" : "bg-neutral-100 hover:bg-neutral-200"
+                      } transition-colors`}
+                    >
+                      <FileText className="h-5 w-5 shrink-0" />
+                      <span className="text-sm truncate flex-1">
+                        {msg.media_filename || "File"}
+                      </span>
+                      <Download className="h-4 w-4 shrink-0" />
+                    </a>
+                  )}
+                  {msg.media_url && msg.media_type === "video" && (
+                    <video
+                      src={`${API_BASE_URL}${msg.media_url}`}
+                      controls
+                      className="rounded-lg max-w-full max-h-64 mb-2"
+                    />
+                  )}
+                  {msg.media_url && msg.media_type === "audio" && (
+                    <audio
+                      src={`${API_BASE_URL}${msg.media_url}`}
+                      controls
+                      className="mb-2 max-w-full"
+                    />
+                  )}
+
+                  {/* Text content */}
+                  {msg.text && !(msg.media_url && /^\[(Image|Video|Audio|Document|Sticker)\]$/.test(msg.text.trim())) && (
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                      {msg.text}
+                    </p>
+                  )}
 
                   <div
                     className={`mt-1 flex items-center justify-end gap-1 text-[11px] ${
@@ -194,14 +301,61 @@ export default function ChatWindowAgent({
       </ScrollArea>
 
       {/* INPUT */}
-      <footer className="border-t border-neutral-200 bg-white px-4 py-3">
-        <div className="flex items-end gap-2">
+      <footer className="border-t border-neutral-200 bg-white">
+        {/* Media preview */}
+        {pendingMedia && (
+          <div className="px-4 pt-3 pb-2 bg-blue-50 border-b flex items-center gap-3">
+            {pendingMedia.media_type === "image" && mediaPreviewUrl ? (
+              <img
+                src={mediaPreviewUrl}
+                alt="Preview"
+                className="h-16 w-16 object-cover rounded-lg border"
+              />
+            ) : (
+              <div className="h-16 w-16 bg-slate-200 rounded-lg flex items-center justify-center">
+                <FileText className="h-8 w-8 text-slate-500" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">
+                {pendingMedia.media_filename}
+              </p>
+              <p className="text-xs text-slate-500 capitalize">
+                {pendingMedia.media_type}
+              </p>
+            </div>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7 shrink-0"
+              onClick={clearPendingMedia}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+
+        <div className="px-4 py-3 flex items-end gap-2">
+          {/* File Input (hidden) */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.zip"
+            className="hidden"
+            onChange={handleFileSelect}
+          />
           <Button
             size="icon"
             variant="ghost"
             className="text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={disabled || isUploading}
           >
-            <Paperclip className="h-5 w-5" />
+            {isUploading ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Paperclip className="h-5 w-5" />
+            )}
           </Button>
 
           <textarea
@@ -234,7 +388,7 @@ export default function ChatWindowAgent({
           <Button
             size="icon"
             onClick={handleSend}
-            disabled={!message.trim() || disabled}
+            disabled={(!message.trim() && !pendingMedia) || disabled}
             className="
               rounded-xl bg-neutral-900 text-white
               hover:bg-neutral-800

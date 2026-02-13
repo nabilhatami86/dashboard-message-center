@@ -21,6 +21,10 @@ export interface Message {
   sender_name?: string;
   time: string;
   status?: MessageStatus;
+  /** Media attachment fields */
+  media_url?: string | null;
+  media_type?: string | null;   // "image", "video", "document", "audio"
+  media_filename?: string | null;
   /** For group messages: info about who sent the message */
   participant_phone?: string | null;
   participant_name?: string | null;

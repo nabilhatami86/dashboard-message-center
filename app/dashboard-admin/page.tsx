@@ -220,7 +220,7 @@ function DashboardContent() {
   };
 
   // ================= AGENT/ADMIN SEND MESSAGE =================
-  const handleSendMessage = async (text: string) => {
+  const handleSendMessage = async (text: string, media?: { media_url: string; media_type: string; media_filename: string }) => {
     if (
       !activeChat ||
       activeChat.mode !== "agent" ||
@@ -240,6 +240,9 @@ function DashboardContent() {
         minute: "2-digit",
       }),
       status: "sent" as const,
+      media_url: media?.media_url || null,
+      media_type: media?.media_type || null,
+      media_filename: media?.media_filename || null,
     };
 
     setChats((prev) =>
@@ -261,6 +264,9 @@ function DashboardContent() {
           text,
           sender: "agent",
           agent_id: user.id,
+          media_url: media?.media_url || null,
+          media_type: media?.media_type || null,
+          media_filename: media?.media_filename || null,
         },
         token
       );

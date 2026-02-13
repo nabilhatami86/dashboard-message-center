@@ -87,6 +87,10 @@ export interface MessageResponse {
   status: "sent" | "read";
   agent_id?: number;
   created_at: string;
+  // Media attachment fields
+  media_url?: string | null;
+  media_type?: string | null;
+  media_filename?: string | null;
   // For group messages: info about who sent the message
   participant_phone?: string | null;
   participant_name?: string | null;
@@ -157,6 +161,10 @@ export interface SendMessageRequest {
   text: string;
   sender: "customer" | "agent";
   agent_id?: number;
+  // Media attachment fields
+  media_url?: string | null;
+  media_type?: string | null;
+  media_filename?: string | null;
 }
 
 export async function sendMessage(
@@ -256,6 +264,38 @@ export async function deleteMessage(
   if (!response.ok) {
     throw new Error("Failed to delete message");
   }
+}
+
+// =====================
+// FILE UPLOAD API
+// =====================
+export interface UploadResponse {
+  media_url: string;
+  media_type: string;
+  media_filename: string;
+}
+
+export async function uploadFile(
+  file: File,
+  token: string
+): Promise<UploadResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(`${API_BASE_URL}/chats/upload`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail || "Failed to upload file");
+  }
+
+  return response.json();
 }
 
 // =====================

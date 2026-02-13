@@ -15,25 +15,29 @@ import { Badge } from "@/components/ui/badge";
 // } from "@/components/ui/dropdown-menu";
 import {
   Send,
-  // Paperclip,
+  Paperclip,
   MoreVertical,
   UserPlus,
   Check,
   CheckCheck,
-  // ChevronDown,
   Reply,
   Edit2,
   Trash2,
   X,
   Zap,
+  FileText,
+  Download,
+  Loader2,
 } from "lucide-react";
 import { Chat, Message, ChatMode, ShortcutMessage } from "@/app/types/types";
-import { getShortcuts } from "@/lib/api";
+import { getShortcuts, uploadFile, UploadResponse } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 interface ChatWindowProps {
   chat: Chat;
-  onSendMessage: (text: string) => void;
+  onSendMessage: (text: string, media?: { media_url: string; media_type: string; media_filename: string }) => void;
   onAssignAgent: () => void;
   onPauseChat: (nextMode: ChatMode) => void;
   onCustomerMessage: (text: string) => void;
@@ -52,6 +56,12 @@ function ChatWindow({
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Media attachment state
+  const [pendingMedia, setPendingMedia] = useState<UploadResponse | null>(null);
+  const [mediaPreviewUrl, setMediaPreviewUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Shortcut inline dropdown state
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -69,21 +79,56 @@ function ChatWindow({
   const disabled = isPaused || isClosed;
 
   const handleSend = () => {
-    if (!message.trim() || !isAgent) return;
+    // Allow send if there's text OR media
+    if ((!message.trim() && !pendingMedia) || !isAgent) return;
+
+    const mediaPayload = pendingMedia
+      ? { media_url: pendingMedia.media_url, media_type: pendingMedia.media_type, media_filename: pendingMedia.media_filename }
+      : undefined;
 
     if (editingMessage) {
       // TODO: Implement edit message API
       setEditingMessage(null);
     } else if (replyTo) {
-      // Send with reply context
       const replyMessage = `[Reply to: ${replyTo.text}]\n${message}`;
-      onSendMessage(replyMessage);
+      onSendMessage(replyMessage, mediaPayload);
       setReplyTo(null);
     } else {
-      onSendMessage(message.trim());
+      onSendMessage(message.trim() || (pendingMedia ? `[${pendingMedia.media_type === "image" ? "Image" : "File"}]` : ""), mediaPayload);
     }
 
     setMessage("");
+    clearPendingMedia();
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !token) return;
+
+    setIsUploading(true);
+    try {
+      const result = await uploadFile(file, token);
+      setPendingMedia(result);
+
+      // Create preview URL for images
+      if (result.media_type === "image") {
+        setMediaPreviewUrl(URL.createObjectURL(file));
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Upload gagal");
+    } finally {
+      setIsUploading(false);
+      // Reset file input
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const clearPendingMedia = () => {
+    setPendingMedia(null);
+    if (mediaPreviewUrl) {
+      URL.revokeObjectURL(mediaPreviewUrl);
+      setMediaPreviewUrl(null);
+    }
   };
 
   const handleReply = (msg: Message) => {
@@ -363,7 +408,58 @@ function ChatWindow({
                         {msg.participant_name || msg.participant_phone}
                       </p>
                     )}
-                    <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
+
+                    {/* Media attachment rendering */}
+                    {msg.media_url && msg.media_type === "image" && (
+                      <a
+                        href={`${API_BASE_URL}${msg.media_url}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block mb-2"
+                      >
+                        <img
+                          src={`${API_BASE_URL}${msg.media_url}`}
+                          alt={msg.media_filename || "Image"}
+                          className="rounded-lg max-w-full max-h-64 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                          loading="lazy"
+                        />
+                      </a>
+                    )}
+                    {msg.media_url && msg.media_type === "document" && (
+                      <a
+                        href={`${API_BASE_URL}${msg.media_url}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`flex items-center gap-2 mb-2 p-2 rounded-lg ${
+                          fromAgent ? "bg-blue-600 hover:bg-blue-700" : "bg-slate-200 hover:bg-slate-300"
+                        } transition-colors`}
+                      >
+                        <FileText className="h-5 w-5 shrink-0" />
+                        <span className="text-sm truncate flex-1">
+                          {msg.media_filename || "File"}
+                        </span>
+                        <Download className="h-4 w-4 shrink-0" />
+                      </a>
+                    )}
+                    {msg.media_url && msg.media_type === "video" && (
+                      <video
+                        src={`${API_BASE_URL}${msg.media_url}`}
+                        controls
+                        className="rounded-lg max-w-full max-h-64 mb-2"
+                      />
+                    )}
+                    {msg.media_url && msg.media_type === "audio" && (
+                      <audio
+                        src={`${API_BASE_URL}${msg.media_url}`}
+                        controls
+                        className="mb-2 max-w-full"
+                      />
+                    )}
+
+                    {/* Text content (skip if text is just a media placeholder) */}
+                    {msg.text && !(msg.media_url && /^\[(Image|Video|Audio|Document|Sticker)\]$/.test(msg.text.trim())) && (
+                      <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
+                    )}
                     <div className="flex items-center justify-end gap-1 text-xs mt-1 opacity-70">
                       <span>{msg.time}</span>
                       {fromAgent &&
@@ -474,6 +570,39 @@ function ChatWindow({
           </div>
         )}
 
+        {/* Media preview */}
+        {pendingMedia && (
+          <div className="px-4 pt-3 pb-2 bg-blue-50 border-b flex items-center gap-3">
+            {pendingMedia.media_type === "image" && mediaPreviewUrl ? (
+              <img
+                src={mediaPreviewUrl}
+                alt="Preview"
+                className="h-16 w-16 object-cover rounded-lg border"
+              />
+            ) : (
+              <div className="h-16 w-16 bg-slate-200 rounded-lg flex items-center justify-center">
+                <FileText className="h-8 w-8 text-slate-500" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">
+                {pendingMedia.media_filename}
+              </p>
+              <p className="text-xs text-slate-500 capitalize">
+                {pendingMedia.media_type}
+              </p>
+            </div>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7 shrink-0"
+              onClick={clearPendingMedia}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+
         <div className="p-4 flex gap-2 items-end">
           {/* Shortcut Button */}
           <Button
@@ -492,6 +621,29 @@ function ChatWindow({
             className="shrink-0"
           >
             <Zap className="h-5 w-5" />
+          </Button>
+
+          {/* Attachment Button */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,.doc,.docx,.xls,.xlsx,.txt,.zip"
+            className="hidden"
+            onChange={handleFileSelect}
+          />
+          <Button
+            size="icon"
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={disabled || !isAgent || isUploading}
+            title="Kirim File / Image"
+            className="shrink-0"
+          >
+            {isUploading ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Paperclip className="h-5 w-5" />
+            )}
           </Button>
 
           <textarea
@@ -557,7 +709,7 @@ function ChatWindow({
           <Button
             size="icon"
             onClick={handleSend}
-            disabled={!message.trim() || !isAgent || disabled}
+            disabled={(!message.trim() && !pendingMedia) || !isAgent || disabled}
             className="shrink-0"
           >
             <Send className="h-5 w-5" />
