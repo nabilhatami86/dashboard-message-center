@@ -737,6 +737,33 @@ export async function resolveTicket(
   return response.json();
 }
 
+// Transfer ticket ke agent lain (by chat_id)
+export async function transferTicketByChat(
+  chatId: number,
+  toAgentId: number,
+  token: string,
+  reason?: string
+): Promise<{ status: string; message: string; ticket: TicketResponse }> {
+  const response = await fetch(
+    `${API_BASE_URL}/tickets/transfer-by-chat/${chatId}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ to_agent_id: toAgentId, reason }),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail || "Failed to transfer ticket");
+  }
+
+  return response.json();
+}
+
 // Get ticket statistics
 export async function getTicketStats(
   token: string

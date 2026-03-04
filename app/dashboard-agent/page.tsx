@@ -16,6 +16,9 @@ import {
   getAdminChat,
   sendAdminMessage,
   updateChatMode,
+  getAgentList,
+  transferTicketByChat,
+  AgentUser,
 } from "@/lib/api";
 import {
   transformChatResponse,
@@ -35,6 +38,7 @@ function DashboardAgentContent() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [agentList, setAgentList] = useState<AgentUser[]>([]);
 
   const user = useAuthStore((state) => state.user);
   const token = useAuthStore((state) => state.token);
@@ -140,6 +144,11 @@ function DashboardAgentContent() {
   // Load chats on component mount and when URL params change
   useEffect(() => {
     loadChats();
+
+    // Load agent list untuk fitur transfer
+    if (token) {
+      getAgentList(token).then(setAgentList).catch(() => {});
+    }
 
     // Check if we need to refresh after claiming ticket
     const searchParams = new URLSearchParams(window.location.search);
@@ -301,6 +310,17 @@ function DashboardAgentContent() {
       }
     }
   };
+  // ================= TRANSFER TICKET =================
+  const handleTransferTicket = async (toAgentId: number, reason: string) => {
+    if (!token || !activeChatId) return;
+
+    await transferTicketByChat(activeChatId, toAgentId, token, reason);
+
+    // Setelah transfer, chat ini bukan milik agent ini lagi — hapus dari list
+    setChats((prev) => prev.filter((c) => c.id !== activeChatId));
+    setActiveChatId(null);
+  };
+
   const handleCustomerMessage = async (chatId: number, text: string) => {
     if (!token || !user) return;
 
@@ -459,6 +479,8 @@ function DashboardAgentContent() {
                     handleCustomerMessage(activeChatId!, text)
                   }
                   onOpenCustomer={() => setShowCustomer(true)}
+                  onTransferTicket={handleTransferTicket}
+                  availableAgents={agentList}
                 />
 
                 {/* CUSTOMER DETAIL */}

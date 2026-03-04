@@ -28,9 +28,10 @@ import {
   FileText,
   Download,
   Loader2,
+  ArrowRightLeft,
 } from "lucide-react";
 import { Chat, Message, ChatMode, ShortcutMessage } from "@/app/types/types";
-import { getShortcuts, uploadFile, UploadResponse } from "@/lib/api";
+import { getShortcuts, uploadFile, UploadResponse, AgentUser } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -42,6 +43,8 @@ interface ChatWindowProps {
   onPauseChat: (nextMode: ChatMode) => void;
   onCustomerMessage: (text: string) => void;
   onOpenCustomer?: () => void;
+  onTransferTicket?: (toAgentId: number, reason: string) => Promise<void>;
+  availableAgents?: AgentUser[];
 }
 
 function ChatWindow({
@@ -50,6 +53,8 @@ function ChatWindow({
   onAssignAgent,
   onPauseChat,
   onOpenCustomer,
+  onTransferTicket,
+  availableAgents = [],
 }: ChatWindowProps) {
   const [message, setMessage] = useState("");
   const [replyTo, setReplyTo] = useState<Message | null>(null);
@@ -62,6 +67,14 @@ function ChatWindow({
   const [pendingMedia, setPendingMedia] = useState<UploadResponse | null>(null);
   const [mediaPreviewUrl, setMediaPreviewUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+
+  // Transfer modal state
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [selectedTransferAgentId, setSelectedTransferAgentId] = useState<number | null>(null);
+  const [transferReason, setTransferReason] = useState("");
+  const [isTransferring, setIsTransferring] = useState(false);
+
+  const currentUser = useAuthStore((s) => s.user);
 
   // Shortcut inline dropdown state
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -218,6 +231,21 @@ function ChatWindow({
     }
   };
 
+  const handleConfirmTransfer = async () => {
+    if (!selectedTransferAgentId || !onTransferTicket) return;
+    setIsTransferring(true);
+    try {
+      await onTransferTicket(selectedTransferAgentId, transferReason);
+      setShowTransferModal(false);
+      setSelectedTransferAgentId(null);
+      setTransferReason("");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Gagal transfer ticket");
+    } finally {
+      setIsTransferring(false);
+    }
+  };
+
   const systemInfoText = (() => {
     if (mode === "closed") {
       return "✅ Sesi chat sudah selesai. Chat baru dari customer akan ditangani bot terlebih dahulu.";
@@ -307,6 +335,20 @@ function ChatWindow({
             <UserPlus className="h-3 w-3 mr-1" />
             Assign
           </Button>
+
+          {/* Transfer button — hanya muncul jika mode agent & ada handler */}
+          {onTransferTicket && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowTransferModal(true)}
+              disabled={mode !== "agent" || isClosed}
+              className="h-7 px-2 text-xs text-orange-600 border-orange-300 hover:bg-orange-50"
+            >
+              <ArrowRightLeft className="h-3 w-3 mr-1" />
+              Transfer
+            </Button>
+          )}
 
           <Button
             size="sm"
@@ -716,6 +758,114 @@ function ChatWindow({
           </Button>
         </div>
       </div>
+      {/* TRANSFER MODAL */}
+      {showTransferModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-semibold text-neutral-900 flex items-center gap-2">
+                <ArrowRightLeft className="h-4 w-4 text-orange-500" />
+                Transfer ke Agent Lain
+              </h2>
+              <button
+                onClick={() => {
+                  setShowTransferModal(false);
+                  setSelectedTransferAgentId(null);
+                  setTransferReason("");
+                }}
+                className="text-neutral-400 hover:text-neutral-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <p className="text-sm text-neutral-500 mb-4">
+              Transfer chat <span className="font-medium text-neutral-800">{chat.name}</span> ke agent lain yang lebih sesuai.
+            </p>
+
+            {/* Daftar Agent */}
+            <div className="mb-4">
+              <label className="text-xs font-medium text-neutral-600 mb-2 block">
+                Pilih Agent Tujuan
+              </label>
+              {availableAgents.filter((a) => a.id !== currentUser?.id).length === 0 ? (
+                <p className="text-sm text-neutral-400 py-3 text-center border rounded-lg">
+                  Tidak ada agent lain yang tersedia
+                </p>
+              ) : (
+                <div className="border rounded-lg divide-y max-h-48 overflow-y-auto">
+                  {availableAgents
+                    .filter((a) => a.id !== currentUser?.id)
+                    .map((agent) => (
+                      <button
+                        key={agent.id}
+                        type="button"
+                        onClick={() => setSelectedTransferAgentId(agent.id)}
+                        className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-colors ${
+                          selectedTransferAgentId === agent.id
+                            ? "bg-orange-50 border-l-2 border-orange-500"
+                            : "hover:bg-neutral-50"
+                        }`}
+                      >
+                        <div className="h-8 w-8 rounded-full bg-neutral-200 flex items-center justify-center text-xs font-semibold text-neutral-700 shrink-0">
+                          {agent.name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-neutral-800">{agent.name}</p>
+                          <p className="text-xs text-neutral-400">{agent.email}</p>
+                        </div>
+                        {selectedTransferAgentId === agent.id && (
+                          <Check className="h-4 w-4 text-orange-500 ml-auto" />
+                        )}
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
+
+            {/* Alasan (opsional) */}
+            <div className="mb-5">
+              <label className="text-xs font-medium text-neutral-600 mb-2 block">
+                Alasan Transfer <span className="text-neutral-400">(opsional)</span>
+              </label>
+              <textarea
+                value={transferReason}
+                onChange={(e) => setTransferReason(e.target.value)}
+                placeholder="Contoh: Customer butuh bantuan teknis billing, saya tidak menguasai bidang ini"
+                rows={3}
+                className="w-full text-sm border rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-orange-300"
+              />
+            </div>
+
+            {/* Buttons */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setShowTransferModal(false);
+                  setSelectedTransferAgentId(null);
+                  setTransferReason("");
+                }}
+                className="flex-1 px-4 py-2 text-sm border rounded-lg hover:bg-neutral-50"
+                disabled={isTransferring}
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleConfirmTransfer}
+                disabled={!selectedTransferAgentId || isTransferring}
+                className="flex-1 px-4 py-2 text-sm bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isTransferring ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ArrowRightLeft className="h-4 w-4" />
+                )}
+                {isTransferring ? "Mentransfer..." : "Transfer Sekarang"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
