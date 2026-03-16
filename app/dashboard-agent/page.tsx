@@ -257,7 +257,7 @@ function DashboardAgentContent() {
   };
   // ================= ASSIGN AGENT =================
   const assignToAgent = async () => {
-    if (!activeChat || !token) return;
+    if (!activeChat || !token || !activeChatId) return;
 
     // Optimistic update
     setChats((prev) =>
@@ -266,8 +266,11 @@ function DashboardAgentContent() {
       )
     );
 
-    // TODO: Call backend API to update chat mode
-    // await updateChatMode(activeChatId, "agent", token);
+    try {
+      await updateChatMode(activeChatId, "agent", token, user?.id);
+    } catch (err) {
+      console.error("Failed to assign agent:", err);
+    }
   };
 
   // ================= PAUSE / RESUME =================
@@ -446,53 +449,72 @@ function DashboardAgentContent() {
           </div>
         </div>
       ) : (
-        <div
-          className={`grid flex-1 min-w-0 h-full ${
-            activeTab === "customer" && showCustomer
-              ? "grid-cols-[280px_1fr_320px]"
-              : activeTab === "customer"
-              ? "grid-cols-[280px_1fr]"
-              : "grid-cols-[1fr]"
-          }`}
-        >
+        <div className="flex-1 min-w-0 h-full overflow-hidden">
           {activeTab === "customer" ? (
-            <>
-              {/* CHAT LIST */}
-              <ChatList
-                chats={chats}
-                activeChatId={activeChatId}
-                onSelectChat={(chat) => {
-                  setActiveChatId(chat.id);
-                  setShowCustomer(true);
-                }}
-              />
+            <div className={`grid h-full ${
+              activeTab === "customer" && showCustomer && activeChat
+                ? "grid-cols-1 md:grid-cols-[260px_1fr] lg:grid-cols-[280px_1fr_300px]"
+                : activeChat
+                ? "grid-cols-1 md:grid-cols-[260px_1fr] lg:grid-cols-[280px_1fr]"
+                : "grid-cols-1 md:grid-cols-[260px_1fr]"
+            }`}>
+              {/* CHAT LIST — hidden on mobile when chat is open */}
+              <div className={`${activeChat ? "hidden md:block" : "block"} border-r overflow-hidden`}>
+                <ChatList
+                  chats={chats}
+                  activeChatId={activeChatId}
+                  onSelectChat={(chat) => {
+                    setActiveChatId(chat.id);
+                    setShowCustomer(false);
+                  }}
+                />
+              </div>
 
               {/* CHAT WINDOW & CUSTOMER DETAIL */}
               {activeChat ? (
               <>
-                <ChatWindow
-                  chat={activeChat}
-                  onSendMessage={handleSendMessage}
-                  onAssignAgent={assignToAgent}
-                  onPauseChat={handlePauseChat}
-                  onCustomerMessage={(text) =>
-                    handleCustomerMessage(activeChatId!, text)
-                  }
-                  onOpenCustomer={() => setShowCustomer(true)}
-                  onTransferTicket={handleTransferTicket}
-                  availableAgents={agentList}
-                />
+                <div className="flex flex-col min-w-0 overflow-hidden">
+                  {/* Back button on mobile */}
+                  <div className="md:hidden px-3 py-1.5 border-b bg-slate-50">
+                    <button
+                      onClick={() => setActiveChatId(null)}
+                      className="text-xs text-blue-600 flex items-center gap-1"
+                    >
+                      ← Kembali ke daftar
+                    </button>
+                  </div>
+                  <div className="flex-1 min-h-0">
+                    <ChatWindow
+                      chat={activeChat}
+                      onSendMessage={handleSendMessage}
+                      onAssignAgent={assignToAgent}
+                      onPauseChat={handlePauseChat}
+                      onCustomerMessage={(text) =>
+                        handleCustomerMessage(activeChatId!, text)
+                      }
+                      onOpenCustomer={() => setShowCustomer((v) => !v)}
+                      onTransferTicket={handleTransferTicket}
+                      availableAgents={agentList}
+                      onNewMessage={loadChats}
+                    />
+                  </div>
+                </div>
 
-                {/* CUSTOMER DETAIL */}
+                {/* CUSTOMER DETAIL — slide panel on mobile, column on lg */}
                 {showCustomer && (
-                  <CustomerDetail
-                    chat={activeChat}
-                    onClose={() => setShowCustomer(false)}
-                  />
+                  <div className="fixed inset-0 z-40 bg-black/30 lg:static lg:bg-transparent lg:z-auto"
+                    onClick={(e) => { if (e.target === e.currentTarget) setShowCustomer(false); }}>
+                    <div className="absolute right-0 top-0 h-full w-[300px] sm:w-[320px] bg-white shadow-xl lg:static lg:shadow-none lg:w-auto overflow-y-auto">
+                      <CustomerDetail
+                        chat={activeChat}
+                        onClose={() => setShowCustomer(false)}
+                      />
+                    </div>
+                  </div>
                 )}
               </>
             ) : (
-              <div className="flex items-center justify-center col-span-2">
+              <div className="hidden md:flex items-center justify-center">
                 <div className="text-center">
                   <div className="text-lg font-semibold text-neutral-900">
                     No Chat Selected
@@ -503,8 +525,8 @@ function DashboardAgentContent() {
                 </div>
               </div>
             )}
-          </>
-        ) : activeTab === "admin" ? (
+            </div>
+          ) : activeTab === "admin" ? (
           /* ADMIN CHAT WINDOW */
           <AdminChatWindow
             adminChat={adminChat}

@@ -166,7 +166,7 @@ function DashboardContent() {
 
   // ================= ASSIGN AGENT =================
   const assignToAgent = async () => {
-    if (!activeChat || !token) return;
+    if (!activeChat || !token || !activeChatId) return;
 
     // Optimistic update
     setChats((prev) =>
@@ -175,8 +175,11 @@ function DashboardContent() {
       )
     );
 
-    // TODO: Call backend API to update chat mode
-    // await updateChatMode(activeChatId, "agent", token);
+    try {
+      await updateChatMode(activeChatId, "agent", token, user?.id);
+    } catch (err) {
+      console.error("Failed to assign agent:", err);
+    }
   };
 
   // ================= PAUSE / RESUME =================
@@ -471,53 +474,51 @@ function DashboardContent() {
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden bg-slate-50">
       {/* Top Bar with Tab Switcher - ALWAYS VISIBLE */}
-      <div className="flex items-center justify-between px-6 py-3 bg-white border-b border-neutral-200 flex-shrink-0">
+      <div className="flex items-center justify-between px-3 sm:px-6 py-2 sm:py-3 bg-white border-b border-neutral-200 flex-shrink-0 gap-2">
         {/* Tab Switcher */}
-        <div className="flex gap-1 bg-neutral-100 rounded-lg p-1">
+        <div className="flex gap-0.5 sm:gap-1 bg-neutral-100 rounded-lg p-1">
           <button
             onClick={() => setActiveTab("customer")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-md transition-all ${
               activeTab === "customer"
                 ? "bg-white text-neutral-900 shadow-sm"
                 : "text-neutral-600 hover:text-neutral-900"
             }`}
           >
-            <MessageSquare className="h-4 w-4" />
-            <span className="text-sm font-medium">Agent Chats</span>
+            <MessageSquare className="h-4 w-4 shrink-0" />
+            <span className="text-xs sm:text-sm font-medium hidden xs:inline sm:inline">Agent Chats</span>
           </button>
           <button
             onClick={() => setActiveTab("agent")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-md transition-all ${
               activeTab === "agent"
                 ? "bg-white text-neutral-900 shadow-sm"
                 : "text-neutral-600 hover:text-neutral-900"
             }`}
           >
-            <Users className="h-4 w-4" />
-            <span className="text-sm font-medium">Internal Chat</span>
+            <Users className="h-4 w-4 shrink-0" />
+            <span className="text-xs sm:text-sm font-medium hidden xs:inline sm:inline">Internal Chat</span>
           </button>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-3">
-          {/* Agent Monitoring Button */}
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           <button
             onClick={() => router.push("/dashboard-admin-monitoring")}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-all"
-            title="Agent Monitoring - Track Performance"
+            className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-all"
+            title="Agent Monitoring"
           >
-            <BarChart3 className="h-4 w-4" />
-            <span className="text-sm font-medium">Agent Monitoring</span>
+            <BarChart3 className="h-4 w-4 shrink-0" />
+            <span className="text-xs sm:text-sm font-medium hidden sm:inline">Monitoring</span>
           </button>
 
-          {/* Logout Button */}
           <button
             onClick={logout}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-neutral-900 text-white hover:bg-red-600 transition-all"
+            className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg bg-neutral-900 text-white hover:bg-red-600 transition-all"
             title="Logout"
           >
-            <LogOut className="h-4 w-4" />
-            <span className="text-sm font-medium">Logout</span>
+            <LogOut className="h-4 w-4 shrink-0" />
+            <span className="text-xs sm:text-sm font-medium hidden sm:inline">Logout</span>
           </button>
         </div>
       </div>
@@ -549,54 +550,73 @@ function DashboardContent() {
         </div>
       ) : activeTab === "customer" ? (
         /* Customer Chats View */
-        <div
-          className={`grid flex-1 min-w-0 h-full transition-all duration-300 ${
-            showCustomer
-              ? "grid-cols-[minmax(240px,320px)_1fr_minmax(280px,360px)]"
-              : "grid-cols-[minmax(240px,320px)_1fr]"
-          }`}
+        <div className="flex flex-col md:grid flex-1 min-w-0 h-full transition-all duration-300"
+          style={{ gridTemplateColumns: showCustomer ? "minmax(240px,280px) 1fr minmax(260px,300px)" : "minmax(240px,280px) 1fr" }}
         >
-          {/* Chat List */}
-          <ChatList
-            chats={chats}
-            activeChatId={activeChatId}
-            onSelectChat={(chat) => {
-              setActiveChatId(chat.id);
-              setShowCustomer(true);
-            }}
-            onDeleteChat={handleDeleteChat}
-            isSelectMode={isSelectMode}
-            selectedChats={selectedChats}
-            onToggleSelectMode={handleToggleSelectMode}
-            onToggleChatSelection={handleToggleChatSelection}
-            onBulkDelete={handleBulkDelete}
-            onSelectAll={handleSelectAll}
-          />
+          {/* Chat List — hidden on mobile when chat is open */}
+          <div className={`${activeChat ? "hidden md:flex md:flex-col" : "flex flex-col"} border-r overflow-hidden`}>
+            <ChatList
+              chats={chats}
+              activeChatId={activeChatId}
+              onSelectChat={(chat) => {
+                setActiveChatId(chat.id);
+                setShowCustomer(true);
+              }}
+              onDeleteChat={handleDeleteChat}
+              isSelectMode={isSelectMode}
+              selectedChats={selectedChats}
+              onToggleSelectMode={handleToggleSelectMode}
+              onToggleChatSelection={handleToggleChatSelection}
+              onBulkDelete={handleBulkDelete}
+              onSelectAll={handleSelectAll}
+            />
+          </div>
 
           {activeChat ? (
             <>
               {/* Chat Window */}
-              <ChatWindow
-                chat={activeChat}
-                onSendMessage={handleSendMessage}
-                onAssignAgent={assignToAgent}
-                onPauseChat={handlePauseChat}
-                onCustomerMessage={(text) =>
-                  handleCustomerMessage(activeChatId!, text)
-                }
-                onOpenCustomer={() => setShowCustomer(true)}
-              />
+              <div className="flex flex-col min-w-0 overflow-hidden">
+                {/* Back button on mobile */}
+                <div className="md:hidden px-3 py-1.5 border-b bg-slate-50 flex-shrink-0">
+                  <button
+                    onClick={() => setActiveChatId(null)}
+                    className="text-xs text-blue-600 flex items-center gap-1"
+                  >
+                    ← Kembali ke daftar
+                  </button>
+                </div>
+                <div className="flex-1 min-h-0">
+                  <ChatWindow
+                    chat={activeChat}
+                    onSendMessage={handleSendMessage}
+                    onAssignAgent={assignToAgent}
+                    onPauseChat={handlePauseChat}
+                    onCustomerMessage={(text) =>
+                      handleCustomerMessage(activeChatId!, text)
+                    }
+                    onOpenCustomer={() => setShowCustomer((v) => !v)}
+                    onNewMessage={loadChats}
+                  />
+                </div>
+              </div>
 
-              {/* Customer Detail */}
+              {/* Customer Detail — slide panel on mobile */}
               {showCustomer && (
-                <CustomerDetail
-                  chat={activeChat}
-                  onClose={() => setShowCustomer(false)}
-                />
+                <div
+                  className="fixed inset-0 z-40 bg-black/30 md:static md:bg-transparent md:z-auto"
+                  onClick={(e) => { if (e.target === e.currentTarget) setShowCustomer(false); }}
+                >
+                  <div className="absolute right-0 top-0 h-full w-[300px] sm:w-[320px] bg-white shadow-xl md:static md:shadow-none md:w-auto overflow-y-auto">
+                    <CustomerDetail
+                      chat={activeChat}
+                      onClose={() => setShowCustomer(false)}
+                    />
+                  </div>
+                </div>
               )}
             </>
           ) : (
-            <div className="flex items-center justify-center col-span-2">
+            <div className="hidden md:flex items-center justify-center col-span-2">
               <div className="text-center">
                 <div className="text-lg font-semibold text-neutral-900">No Chat Selected</div>
                 <div className="text-sm text-neutral-500 mt-2">
@@ -608,7 +628,7 @@ function DashboardContent() {
         </div>
       ) : (
         /* Agent Chats View */
-        <div className="grid flex-1 min-w-0 h-full grid-cols-[minmax(240px,320px)_1fr]">
+        <div className="grid flex-1 min-w-0 h-full grid-cols-1 md:grid-cols-[minmax(220px,280px)_1fr]">
           {/* Agent List */}
           <AgentList
             agents={agents}

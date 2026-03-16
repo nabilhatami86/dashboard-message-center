@@ -145,16 +145,16 @@ export default function AdminMonitoringPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Premium Header */}
         <div className={`bg-white/80 backdrop-blur-xl border-b border-slate-200/60 flex-shrink-0 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
-          <div className="px-8 py-8">
+          <div className="px-4 sm:px-8 py-4 sm:py-8">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg shadow-blue-500/25">
-                <Activity className="w-6 h-6 text-white" />
+              <div className="p-2 sm:p-2.5 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg shadow-blue-500/25 shrink-0">
+                <Activity className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
-              <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+              <div className="min-w-0">
+                <h1 className="text-xl sm:text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent truncate">
                   Agent Performance Monitor
                 </h1>
-                <p className="text-sm text-slate-500 font-medium mt-0.5">
+                <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
                   Real-time insights • Updates every 10s
                 </p>
               </div>
@@ -164,7 +164,7 @@ export default function AdminMonitoringPage() {
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto">
-          <div className="px-8 py-8 max-w-[1600px] mx-auto space-y-8">
+          <div className="px-4 sm:px-8 py-4 sm:py-8 max-w-[1600px] mx-auto space-y-4 sm:space-y-8">
 
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -218,19 +218,19 @@ export default function AdminMonitoringPage() {
 
             {/* Agent Performance Table */}
             <div className={`bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden transition-all duration-700 delay-600 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-              <div className="px-8 py-6 border-b border-slate-200/60">
-                <h2 className="text-lg font-semibold text-slate-800">Agent Performance</h2>
+              <div className="px-4 sm:px-8 py-4 sm:py-6 border-b border-slate-200/60">
+                <h2 className="text-base sm:text-lg font-semibold text-slate-800">Agent Performance</h2>
               </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full">
                   <thead className="bg-slate-50/50 sticky top-0 z-10 backdrop-blur-sm">
                     <tr>
-                      <th className="px-8 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Agent</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Active</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">In Progress</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Resolved</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Actions</th>
+                      <th className="px-4 sm:px-8 py-3 sm:py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Agent</th>
+                      <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
+                      <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Active</th>
+                      <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">In Progress</th>
+                      <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Resolved</th>
+                      <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200/60">
@@ -254,13 +254,13 @@ export default function AdminMonitoringPage() {
                           key={agent.id}
                           className={`transition-all duration-200 hover:bg-slate-50/50 ${selectedAgent === agent.id ? "bg-blue-50/50" : ""}`}
                         >
-                          <td className="px-8 py-5">
+                          <td className="px-4 sm:px-8 py-3 sm:py-5">
                             <div>
                               <div className="text-sm font-semibold text-slate-800">{agent.name}</div>
                               <div className="text-xs text-slate-500 mt-0.5">{agent.email}</div>
                             </div>
                           </td>
-                          <td className="px-6 py-5">
+                          <td className="px-4 sm:px-6 py-3 sm:py-5">
                             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
                               agent.online ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
                             }`}>
@@ -268,10 +268,10 @@ export default function AdminMonitoringPage() {
                               {agent.online ? "Online" : "Offline"}
                             </span>
                           </td>
-                          <td className="px-6 py-5 text-sm font-semibold text-slate-700">{activeCount}</td>
-                          <td className="px-6 py-5 text-sm font-semibold text-slate-700">{inProgress}</td>
-                          <td className="px-6 py-5 text-sm font-semibold text-slate-700">{resolved}</td>
-                          <td className="px-6 py-5">
+                          <td className="px-4 sm:px-6 py-3 sm:py-5 text-sm font-semibold text-slate-700">{activeCount}</td>
+                          <td className="px-4 sm:px-6 py-3 sm:py-5 text-sm font-semibold text-slate-700">{inProgress}</td>
+                          <td className="px-4 sm:px-6 py-3 sm:py-5 text-sm font-semibold text-slate-700">{resolved}</td>
+                          <td className="px-4 sm:px-6 py-3 sm:py-5">
                             <button
                               onClick={() => setSelectedAgent(selectedAgent === agent.id ? null : agent.id)}
                               className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
@@ -289,8 +289,8 @@ export default function AdminMonitoringPage() {
 
             {/* Ticket List */}
             <div className={`bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden transition-all duration-700 delay-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-              <div className="px-8 py-6 border-b border-slate-200/60">
-                <h2 className="text-lg font-semibold text-slate-800">
+              <div className="px-4 sm:px-8 py-4 sm:py-6 border-b border-slate-200/60">
+                <h2 className="text-base sm:text-lg font-semibold text-slate-800 truncate">
                   {selectedAgent ? `Tickets for ${agents.find((a) => a.id === selectedAgent)?.name}` : "All Tickets"}
                 </h2>
               </div>
@@ -298,26 +298,26 @@ export default function AdminMonitoringPage() {
                 <table className="min-w-full">
                   <thead className="bg-slate-50/50 sticky top-0 z-10 backdrop-blur-sm">
                     <tr>
-                      <th className="px-8 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">ID</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Customer</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Priority</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Agent</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Created</th>
+                      <th className="px-4 sm:px-8 py-3 sm:py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">ID</th>
+                      <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Customer</th>
+                      <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
+                      <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Priority</th>
+                      <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Agent</th>
+                      <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Created</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200/60">
                     {filteredTickets.slice(0, 20).map((ticket) => (
                       <tr key={ticket.id} className="transition-all duration-200 hover:bg-slate-50/50">
-                        <td className="px-8 py-5 text-sm font-semibold text-slate-700">#{ticket.id}</td>
-                        <td className="px-6 py-5">
+                        <td className="px-4 sm:px-8 py-3 sm:py-5 text-sm font-semibold text-slate-700">#{ticket.id}</td>
+                        <td className="px-4 sm:px-6 py-3 sm:py-5">
                           <div className="text-sm font-medium text-slate-800">{ticket.customer_name}</div>
                           <div className="text-xs text-slate-500 mt-0.5">{ticket.customer_phone}</div>
                         </td>
-                        <td className="px-6 py-5"><StatusBadge status={ticket.status} /></td>
-                        <td className="px-6 py-5"><PriorityBadge priority={ticket.priority} /></td>
-                        <td className="px-6 py-5 text-sm text-slate-700">{ticket.agent_name || "-"}</td>
-                        <td className="px-6 py-5 text-xs text-slate-500">{new Date(ticket.created_at).toLocaleString()}</td>
+                        <td className="px-4 sm:px-6 py-3 sm:py-5"><StatusBadge status={ticket.status} /></td>
+                        <td className="px-4 sm:px-6 py-3 sm:py-5"><PriorityBadge priority={ticket.priority} /></td>
+                        <td className="px-4 sm:px-6 py-3 sm:py-5 text-sm text-slate-700 whitespace-nowrap">{ticket.agent_name || "-"}</td>
+                        <td className="px-4 sm:px-6 py-3 sm:py-5 text-xs text-slate-500 whitespace-nowrap">{new Date(ticket.created_at).toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>

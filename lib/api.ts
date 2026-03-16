@@ -213,15 +213,18 @@ export async function deleteChat(chatId: number, token: string): Promise<void> {
 export async function updateChatMode(
   chatId: number,
   mode: "bot" | "agent" | "paused" | "closed",
-  token: string
+  token: string,
+  assignedAgentId?: number
 ): Promise<ChatResponse> {
+  const body: Record<string, unknown> = { mode };
+  if (assignedAgentId !== undefined) body.assigned_agent_id = assignedAgentId;
   const response = await fetch(`${API_BASE_URL}/chats/${chatId}`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ mode }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
@@ -951,6 +954,25 @@ export async function updateShortcut(
 
   if (!response.ok) {
     throw new Error("Failed to update shortcut");
+  }
+
+  return response.json();
+}
+
+export async function duplicateShortcut(
+  shortcutId: number,
+  token: string
+): Promise<ShortcutMessageResponse> {
+  const response = await fetch(`${API_BASE_URL}/shortcuts/${shortcutId}/duplicate`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail || "Failed to duplicate shortcut");
   }
 
   return response.json();

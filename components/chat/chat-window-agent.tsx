@@ -14,10 +14,17 @@ import {
   FileText,
   Download,
   Loader2,
+  Bot,
+  UserCog,
+  PauseCircle,
+  CheckCircle2,
+  Pause,
+  Play,
 } from "lucide-react";
 import { Chat, Message, ChatMode } from "@/app/types/types";
 import { uploadFile, UploadResponse } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
+import { useTypingWebSocket } from "@/hooks/useTypingWebSocket";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -37,7 +44,20 @@ export default function ChatWindowAgent({
   const [message, setMessage] = useState("");
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const agentTypingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const token = useAuthStore((s) => s.token);
+
+  const { customerTyping, sendAgentTyping, wsConnected } = useTypingWebSocket(chat.id);
+
+  const handleAgentTyping = (value: string) => {
+    if (value.length > 0) {
+      sendAgentTyping(true);
+      if (agentTypingTimerRef.current) clearTimeout(agentTypingTimerRef.current);
+      agentTypingTimerRef.current = setTimeout(() => sendAgentTyping(false), 2000);
+    } else {
+      sendAgentTyping(false);
+    }
+  };
 
   // Media attachment state
   const [pendingMedia, setPendingMedia] = useState<UploadResponse | null>(null);
@@ -101,23 +121,19 @@ export default function ChatWindowAgent({
     }
   };
 
-  const systemInfoText = (() => {
+  const systemInfoBanner = (() => {
     if (mode === "closed") {
-      return "✅ Sesi chat sudah selesai. Chat baru dari customer akan ditangani bot terlebih dahulu.";
+      return { icon: CheckCircle2, text: "Sesi chat sudah selesai. Chat baru dari customer akan ditangani bot.", color: "bg-emerald-50 text-emerald-700 border-emerald-200" };
     }
-
     if (mode === "paused") {
-      return "⏸️ Chat sedang dijeda sementara.";
+      return { icon: PauseCircle, text: "Chat sedang dijeda sementara.", color: "bg-amber-50 text-amber-700 border-amber-200" };
     }
-
     if (mode === "agent") {
-      return "💬 Bot dinonaktifkan. Semua pesan ditangani oleh Anda.";
+      return { icon: UserCog, text: "Bot dinonaktifkan. Semua pesan ditangani oleh Anda.", color: "bg-blue-50 text-blue-700 border-blue-200" };
     }
-
     if (mode === "bot") {
-      return "🤖 Chat sedang ditangani oleh bot.";
+      return { icon: Bot, text: "Chat sedang ditangani oleh bot.", color: "bg-slate-50 text-slate-600 border-slate-200" };
     }
-
     return null;
   })();
 
@@ -162,27 +178,58 @@ export default function ChatWindowAgent({
           </div>
         </button>
 
-        {/* End Chat Button */}
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleEndChat}
-          disabled={isClosed || mode === "bot"}
-          className={isClosed ? "opacity-50" : ""}
-        >
-          <X className="h-4 w-4 mr-1" />
-          {isClosed ? "Selesai" : "End Chat"}
-        </Button>
+        <div className="flex gap-1 shrink-0">
+          {/* Pause / Resume — hanya saat mode agent atau paused */}
+          {(mode === "agent" || mode === "paused") && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onEndChat?.(isPaused ? "agent" : "paused")}
+              disabled={isClosed}
+              className={`text-xs h-7 px-2 ${
+                isPaused
+                  ? "text-emerald-600 border-emerald-300 hover:bg-emerald-50"
+                  : "text-amber-600 border-amber-300 hover:bg-amber-50"
+              }`}
+              title={isPaused ? "Resume chat" : "Jeda chat sementara"}
+            >
+              {isPaused ? (
+                <><Play className="h-3.5 w-3.5 mr-1" />Resume</>
+              ) : (
+                <><Pause className="h-3.5 w-3.5 mr-1" />Jeda</>
+              )}
+            </Button>
+          )}
+
+          {/* End Chat Button */}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleEndChat}
+            disabled={isClosed || mode === "bot"}
+            className={`text-xs h-7 px-2 ${isClosed ? "opacity-50" : ""}`}
+          >
+            <X className="h-3.5 w-3.5 mr-1" />
+            {isClosed ? "Selesai" : "End Chat"}
+          </Button>
+
+          {/* WS status dot */}
+          <span
+            title={wsConnected ? "Real-time terhubung" : "Menghubungkan..."}
+            className={`h-2 w-2 rounded-full shrink-0 ${wsConnected ? "bg-emerald-400" : "bg-slate-300 animate-pulse"}`}
+          />
+        </div>
       </header>
 
       {/* MESSAGES */}
       <ScrollArea className="flex-1 min-h-0 bg-neutral-50">
-        <div className="px-6 py-6 space-y-5">
-          {/* SYSTEM INFO */}
-          {systemInfoText && (
+        <div className="px-4 sm:px-6 py-5 space-y-5">
+          {/* SYSTEM INFO BANNER */}
+          {systemInfoBanner && (
             <div className="flex justify-center">
-              <div className="text-xs text-slate-600 bg-slate-100 border rounded-full px-4 py-1">
-                {systemInfoText}
+              <div className={`flex items-center gap-2 text-xs border rounded-full px-3 py-1.5 ${systemInfoBanner.color}`}>
+                <systemInfoBanner.icon className="h-3.5 w-3.5 shrink-0" />
+                <span>{systemInfoBanner.text}</span>
               </div>
             </div>
           )}
@@ -190,11 +237,12 @@ export default function ChatWindowAgent({
           {/* NOTIFIKASI SESI SELESAI (jika chat closed) */}
           {isClosed && (
             <div className="flex justify-center my-6">
-              <div className="max-w-md text-center bg-green-50 border border-green-200 rounded-xl px-6 py-4">
-                <div className="text-green-800 font-semibold mb-2">
-                  ✅ Sesi Chat Berakhir
+              <div className="max-w-md w-full text-center bg-emerald-50 border border-emerald-200 rounded-xl px-4 sm:px-6 py-4">
+                <div className="flex items-center justify-center gap-2 text-emerald-800 font-semibold mb-2">
+                  <CheckCircle2 className="h-5 w-5" />
+                  Sesi Chat Berakhir
                 </div>
-                <p className="text-sm text-green-700">
+                <p className="text-sm text-emerald-700">
                   Terima kasih atas waktunya. Sesi chat telah selesai. Jika customer chat lagi, percakapan akan dimulai dari bot.
                 </p>
               </div>
@@ -296,6 +344,23 @@ export default function ChatWindowAgent({
               </div>
             );
           })}
+          {/* Typing indicator — customer sedang mengetik */}
+          {customerTyping && (
+            <div className="flex justify-start">
+              <div className="bg-white border rounded-2xl rounded-bl-md px-4 py-2.5 shadow-sm flex items-center gap-1.5">
+                <span className="text-xs text-neutral-500">{chat.name} sedang mengetik</span>
+                <span className="flex gap-0.5">
+                  {[0, 1, 2].map((i) => (
+                    <span
+                      key={i}
+                      className="w-1.5 h-1.5 bg-neutral-400 rounded-full animate-bounce"
+                      style={{ animationDelay: `${i * 0.15}s` }}
+                    />
+                  ))}
+                </span>
+              </div>
+            </div>
+          )}
           <div ref={bottomRef} />
         </div>
       </ScrollArea>
@@ -361,7 +426,10 @@ export default function ChatWindowAgent({
           <textarea
             value={message}
             disabled={disabled}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={(e) => {
+              setMessage(e.target.value);
+              handleAgentTyping(e.target.value);
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();

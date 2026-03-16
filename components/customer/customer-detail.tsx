@@ -26,9 +26,9 @@ function CustomerDetail({ chat, onClose }: CustomerDetailProps) {
   const profile = chat.profile ?? {};
 
   return (
-    <aside className="h-full w-80 flex flex-col border-l border-neutral-200 bg-white">
+    <aside className="h-full w-full flex flex-col border-l border-neutral-200 bg-white">
       {/* HEADER */}
-      <div className="flex items-center justify-between px-5 h-14 border-b border-neutral-200">
+      <div className="flex items-center justify-between px-4 sm:px-5 h-14 border-b border-neutral-200 flex-shrink-0">
         <h3 className="text-sm font-semibold text-neutral-900">
           Customer Detail
         </h3>
@@ -55,7 +55,7 @@ function CustomerDetail({ chat, onClose }: CustomerDetailProps) {
       </div>
 
       {/* CONTENT */}
-      <div className="flex-1 overflow-y-auto px-5 py-6 space-y-8">
+      <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-5 sm:py-6 space-y-6 sm:space-y-8">
         {/* PROFILE CARD */}
         <div className="rounded-2xl border border-neutral-200 bg-neutral-900 p-5 text-white">
           <div className="flex items-center gap-4">
