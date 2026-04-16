@@ -3,6 +3,7 @@
 import SimpleSidebar from "@/components/ui/app-sidebar";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { useAuthStore } from "@/store/authStore";
+import { useMobileSidebar } from "@/store/mobileSidebarStore";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -13,6 +14,7 @@ export default function DashboardAdminLayout({
 }) {
   const user = useAuthStore((s) => s.user);
   const router = useRouter();
+  const { open: mobileSidebarOpen, close: closeMobileSidebar } = useMobileSidebar();
 
   useEffect(() => {
     if (!user) {
@@ -36,7 +38,10 @@ export default function DashboardAdminLayout({
       }
     >
       <div className="flex h-screen w-full overflow-hidden">
-        <SimpleSidebar /> {/* chats optional, bisa dipakai tanpa error */}
+        <SimpleSidebar
+          mobileOpen={mobileSidebarOpen}
+          onMobileClose={closeMobileSidebar}
+        />
         <SidebarInset className="flex-1 min-w-0 overflow-hidden">
           {children}
         </SidebarInset>

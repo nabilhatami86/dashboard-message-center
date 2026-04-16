@@ -20,7 +20,10 @@ import {
   CheckCircle,
   TrendingUp,
   Zap,
+  LogOut,
+  Menu,
 } from "lucide-react";
+import { useMobileSidebar } from "@/store/mobileSidebarStore";
 
 export default function AdminMonitoringPage() {
   const router = useRouter();
@@ -28,6 +31,8 @@ export default function AdminMonitoringPage() {
   const token = useAuthStore((state) => state.token);
   const initialize = useAuthStore((state) => state.initialize);
   const logout = useAuthStore((state) => state.logout);
+
+  const toggleMobileSidebar = useMobileSidebar((s) => s.toggle);
 
   const [agents, setAgents] = useState<AgentUser[]>([]);
   const [stats, setStats] = useState<TicketStatsResponse | null>(null);
@@ -121,17 +126,16 @@ export default function AdminMonitoringPage() {
   const resolvedPercent = ((stats?.total_resolved || 0) / totalTickets) * 100;
   const waitingPercent = ((stats?.total_waiting_customer || 0) / totalTickets) * 100;
 
+  const { open: mobileSidebarOpen, close: closeMobileSidebar } = useMobileSidebar();
+
   if (loading) {
     return (
       <div className="flex h-screen w-full">
-        <SimpleSidebar />
+        <SimpleSidebar mobileOpen={mobileSidebarOpen} onMobileClose={closeMobileSidebar} />
         <div className="flex-1 bg-gradient-to-br from-slate-50 via-white to-slate-50 flex items-center justify-center">
-          <div className="text-center">
-            <div className="relative">
-              <div className="animate-spin rounded-full h-16 w-16 border-4 border-slate-200 border-t-blue-500 mx-auto"></div>
-              <div className="absolute inset-0 rounded-full bg-blue-500/10 blur-xl animate-pulse"></div>
-            </div>
-            <p className="mt-6 text-slate-600 font-medium">Loading dashboard...</p>
+          <div className="flex flex-col items-center gap-4">
+            <div className="h-10 w-10 rounded-full border-4 border-slate-200 border-t-blue-500 animate-spin" />
+            <p className="text-slate-600 font-medium text-sm">Memuat dashboard...</p>
           </div>
         </div>
       </div>
@@ -140,25 +144,44 @@ export default function AdminMonitoringPage() {
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-gradient-to-br from-slate-50 via-white to-slate-50">
-      <SimpleSidebar />
+      <SimpleSidebar mobileOpen={mobileSidebarOpen} onMobileClose={closeMobileSidebar} />
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Premium Header */}
+        {/* Header */}
         <div className={`bg-white/80 backdrop-blur-xl border-b border-slate-200/60 flex-shrink-0 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
-          <div className="px-4 sm:px-8 py-4 sm:py-8">
-            <div className="flex items-center gap-3">
+          <div className="px-4 sm:px-8 py-4 sm:py-5 flex items-center gap-3">
+            {/* Mobile hamburger */}
+            <button
+              onClick={toggleMobileSidebar}
+              className="md:hidden flex items-center justify-center h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors shrink-0"
+              aria-label="Open menu"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+
+            {/* Title */}
+            <div className="flex items-center gap-3 flex-1 min-w-0">
               <div className="p-2 sm:p-2.5 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg shadow-blue-500/25 shrink-0">
-                <Activity className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
               <div className="min-w-0">
-                <h1 className="text-xl sm:text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent truncate">
+                <h1 className="text-base sm:text-xl font-bold text-slate-800 truncate">
                   Agent Performance Monitor
                 </h1>
-                <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
+                <p className="text-xs text-slate-500 font-medium mt-0.5 hidden sm:block">
                   Real-time insights • Updates every 10s
                 </p>
               </div>
             </div>
+
+            {/* Logout button */}
+            <button
+              onClick={() => { logout(); router.push("/login"); }}
+              className="flex items-center justify-center h-8 w-8 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors shrink-0"
+              title="Logout"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
         </div>
 

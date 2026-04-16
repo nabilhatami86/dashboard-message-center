@@ -12,6 +12,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import AdminTopBar from "@/components/ui/admin-top-bar";
 import {
   Smartphone,
   RefreshCw,
@@ -134,26 +135,35 @@ export default function WhatsAppSettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-100px)]">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">Loading WhatsApp status...</p>
+      <div className="flex flex-col h-full overflow-hidden">
+        <AdminTopBar
+          title="WhatsApp Settings"
+          subtitle="Kelola koneksi WhatsApp"
+          icon={<Smartphone className="h-4 w-4" />}
+          showBack
+          backHref="/dashboard-admin"
+        />
+        <div className="flex-1 flex items-center justify-center bg-slate-50">
+          <div className="flex flex-col items-center gap-4">
+            <div className="h-10 w-10 rounded-full border-4 border-neutral-200 border-t-neutral-800 animate-spin" />
+            <p className="text-sm text-slate-500 font-medium">Memuat status WhatsApp...</p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Smartphone className="w-6 h-6" />
-          WhatsApp Settings
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Kelola koneksi WhatsApp untuk menerima dan mengirim pesan
-        </p>
-      </div>
+    <div className="flex flex-col h-full overflow-hidden">
+      <AdminTopBar
+        title="WhatsApp Settings"
+        subtitle="Kelola koneksi WhatsApp"
+        icon={<Smartphone className="h-4 w-4" />}
+        showBack
+        backHref="/dashboard-admin"
+      />
+
+      <div className="flex-1 overflow-y-auto p-6 max-w-4xl mx-auto w-full">
 
       {error && (
         <Card className="mb-6 border-red-500/30 bg-red-500/10">
@@ -324,6 +334,7 @@ export default function WhatsAppSettingsPage() {
           </ul>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

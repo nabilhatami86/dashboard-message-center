@@ -6,7 +6,11 @@ import { themes } from "@/lib/themes";
 import { Palette, Check } from "lucide-react";
 import { Button } from "./button";
 
-export default function ThemeSwitcher() {
+interface ThemeSwitcherProps {
+  compact?: boolean; // icon-only mode untuk sidebar collapsed
+}
+
+export default function ThemeSwitcher({ compact = false }: ThemeSwitcherProps) {
   const { theme, setTheme } = useThemeStore();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -21,10 +25,11 @@ export default function ThemeSwitcher() {
         variant="outline"
         size="sm"
         onClick={() => setIsOpen((v) => !v)}
-        className="flex items-center gap-2"
+        className={`flex items-center gap-2 ${compact ? "h-8 w-8 p-0 justify-center" : ""}`}
+        title={compact ? "Ganti tema" : undefined}
       >
-        <Palette className="h-4 w-4" />
-        <span className="hidden sm:inline">Theme</span>
+        <Palette className="h-4 w-4 shrink-0" />
+        {!compact && <span className="hidden sm:inline">Theme</span>}
       </Button>
 
       {isOpen && (
@@ -35,19 +40,18 @@ export default function ThemeSwitcher() {
             onClick={() => setIsOpen(false)}
           />
 
-          {/* dropdown */}
-          <div className="absolute right-0 bottom-full mb-2 z-50 w-60 rounded-lg border bg-white shadow-xl">
-            <div className="px-3 py-2 border-b">
-              <p className="text-sm font-semibold text-gray-900">
-                Choose Theme
-              </p>
-              <p className="text-xs text-gray-500">
-                Select your preferred color scheme
-              </p>
+          {/* dropdown — saat compact buka ke kanan, normal buka ke kiri */}
+          <div
+            className={`absolute bottom-full mb-2 z-50 w-60 rounded-xl border bg-white shadow-2xl overflow-hidden ${
+              compact ? "left-full ml-3 bottom-auto top-0" : "right-0"
+            }`}
+          >
+            <div className="px-3 py-2.5 border-b bg-neutral-50">
+              <p className="text-sm font-semibold text-neutral-900">Pilih Tema</p>
+              <p className="text-xs text-neutral-500">Sesuaikan tampilan dashboard</p>
             </div>
 
-            {/* scrollable list */}
-            <div className="max-h-64 overflow-y-auto p-2 space-y-1">
+            <div className="max-h-64 overflow-y-auto p-2 space-y-0.5">
               {Object.values(themes).map((themeOption) => {
                 const isActive = theme === themeOption.type;
 
@@ -55,46 +59,33 @@ export default function ThemeSwitcher() {
                   <button
                     key={themeOption.type}
                     onClick={() => handleThemeChange(themeOption.type)}
-                    className={`
-                      w-full flex items-center justify-between gap-3
-                      rounded-md px-3 py-2 text-left transition
-                      ${
-                        isActive
-                          ? "bg-blue-50 text-blue-700"
-                          : "hover:bg-gray-100"
-                      }
-                    `}
+                    className={`w-full flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-left transition-colors ${
+                      isActive
+                        ? "bg-blue-50 text-blue-700"
+                        : "hover:bg-neutral-100 text-neutral-700"
+                    }`}
                   >
-                    {/* left */}
-                    <div className="flex items-center gap-3">
-                      <span className="text-lg">{themeOption.icon}</span>
-                      <span className="text-sm font-medium">
-                        {themeOption.name}
-                      </span>
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-base">{themeOption.icon}</span>
+                      <span className="text-sm font-medium">{themeOption.name}</span>
                     </div>
 
-                    {/* right */}
-                    <div className="flex items-center gap-2">
-                      <div className="flex gap-1">
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex gap-0.5">
                         <div
-                          className="w-3 h-3 rounded-full border"
-                          style={{
-                            backgroundColor: themeOption.colors.primary,
-                          }}
+                          className="w-3 h-3 rounded-full border border-black/10"
+                          style={{ backgroundColor: themeOption.colors.primary }}
                         />
                         <div
-                          className="w-3 h-3 rounded-full border"
-                          style={{
-                            backgroundColor: themeOption.colors.secondary,
-                          }}
+                          className="w-3 h-3 rounded-full border border-black/10"
+                          style={{ backgroundColor: themeOption.colors.secondary }}
                         />
                         <div
-                          className="w-3 h-3 rounded-full border"
+                          className="w-3 h-3 rounded-full border border-black/10"
                           style={{ backgroundColor: themeOption.colors.accent }}
                         />
                       </div>
-
-                      {isActive && <Check className="h-4 w-4 text-blue-600" />}
+                      {isActive && <Check className="h-3.5 w-3.5 text-blue-600" />}
                     </div>
                   </button>
                 );

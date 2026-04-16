@@ -9,14 +9,94 @@ import {
   Zap,
   Menu,
   X,
+  UserCog,
+  Loader2,
+  CheckCircle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
+import { updateMyTag } from "@/lib/api";
 import ThemeSwitcher from "./theme-switcher";
 
 interface AgentSidebarProps {
   activeTab: "customer" | "admin" | "shortcuts";
   onTabChange: (tab: "customer" | "admin" | "shortcuts") => void;
+}
+
+// ─── Edit Profile Modal ───────────────────────────────────────────────────────
+function EditProfileModal({ onClose }: { onClose: () => void }) {
+  const token = useAuthStore((s) => s.token) ?? "";
+  const user = useAuthStore((s) => s.user);
+  const [displayName, setDisplayName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!displayName.trim()) { setError("Tag tidak boleh kosong"); return; }
+    setError("");
+    setLoading(true);
+    try {
+      const res = await updateMyTag(token, displayName);
+      setSuccess(`Tag berhasil diubah: ~ ${res.display_name}`);
+      setTimeout(onClose, 1500);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Gagal menyimpan");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="w-full max-w-sm bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-200 dark:border-neutral-700">
+          <h2 className="font-semibold text-neutral-900 dark:text-white">Edit Profile</h2>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-500">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <form onSubmit={handleSave} className="px-6 py-5 space-y-4">
+          <div className="bg-neutral-50 dark:bg-neutral-800 rounded-xl px-4 py-3 space-y-1">
+            <p className="text-xs text-neutral-500 dark:text-neutral-400">Login sebagai</p>
+            <p className="text-sm font-semibold text-neutral-900 dark:text-white">{user?.name}</p>
+            <p className="text-xs text-neutral-400">@{user?.username}</p>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-1">
+              Tag di Pesan <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="contoh: Agent John"
+              className="w-full px-3 py-2 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-xs text-neutral-400 mt-1">
+              Muncul sebagai <span className="font-medium">~ {displayName || "..."}</span> di setiap pesanmu
+            </p>
+          </div>
+          {error && <p className="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{error}</p>}
+          {success && (
+            <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded-lg">
+              <CheckCircle className="h-4 w-4" /> {success}
+            </div>
+          )}
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose} className="flex-1 py-2 rounded-xl border border-neutral-200 dark:border-neutral-700 text-sm font-medium text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800">
+              Batal
+            </button>
+            <button type="submit" disabled={loading} className="flex-1 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-60">
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              Simpan
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 }
 
 export default function AgentSidebar({
@@ -26,6 +106,7 @@ export default function AgentSidebar({
   const router = useRouter();
   const logout = useAuthStore((state) => state.logout);
   const [isOpen, setIsOpen] = useState(true);
+  const [showProfile, setShowProfile] = useState(false);
 
   const menuItems = [
     {
@@ -163,12 +244,34 @@ export default function AgentSidebar({
 
         {/* Bottom Actions */}
         <div className="px-2 space-y-2 flex flex-col">
+          {/* Edit Profile */}
+          <button
+            onClick={() => setShowProfile(true)}
+            className={`
+              group relative w-full rounded-xl
+              flex items-center gap-3
+              transition-all duration-200
+              bg-neutral-800 text-neutral-400
+              hover:bg-neutral-700 hover:text-white
+              ${isOpen ? "px-4 py-3 justify-start" : "px-0 py-3 justify-center"}
+            `}
+            title={!isOpen ? "Edit Profile" : undefined}
+          >
+            <UserCog className={`h-5 w-5 flex-shrink-0 ${isOpen ? "" : "mx-auto"}`} />
+            {isOpen && <span className="text-sm font-medium">Edit Profile</span>}
+            {!isOpen && (
+              <div className="hidden md:block absolute left-full ml-2 px-2 py-1 bg-neutral-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                Edit Profile
+              </div>
+            )}
+          </button>
+
           {/* Row: Logout (left) - Theme (right) */}
           <div className="flex items-center justify-between">
             {/* Logout */}
             <button
-              onClick={() => {
-                logout();
+              onClick={async () => {
+                await logout();
                 setIsOpen(false);
               }}
               className={`
@@ -208,6 +311,9 @@ export default function AgentSidebar({
           {isOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
         </button>
       </aside>
+
+      {/* Edit Profile Modal */}
+      {showProfile && <EditProfileModal onClose={() => setShowProfile(false)} />}
     </>
   );
 }

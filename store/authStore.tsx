@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { login as apiLogin, setAuthData, clearAuthData, getUserData } from "@/lib/api";
+import { login as apiLogin, logoutAgent, setAuthData, clearAuthData, getUserData } from "@/lib/api";
 
 export type Role = "admin" | "agent";
 
@@ -17,7 +17,7 @@ interface AuthState {
   user: User | null;
   token: string | null;
   login: (username: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  logout: () => Promise<void>;
   initialize: () => void;
 }
 
@@ -57,8 +57,12 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      // Logout
-      logout: () => {
+      // Logout — beri tahu backend dulu agar status agent di-set offline
+      logout: async () => {
+        const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+        if (token) {
+          await logoutAgent(token);
+        }
         clearAuthData();
         set({ user: null, token: null });
       },

@@ -16,15 +16,18 @@ import {
   getAdminChat,
   sendAdminMessage,
   updateChatMode,
-  getAgentList,
+  getOnlineAgents,
   transferTicketByChat,
-  AgentUser,
+  sendAgentHeartbeat,
+  setAgentOfflineBeacon,
+  OnlineAgent,
 } from "@/lib/api";
 import {
   transformChatResponse,
   transformAdminChatResponse,
 } from "@/lib/transform";
 import { useSmartRefresh } from "@/hooks/useSmartRefresh";
+import { useAgentStatusWebSocket } from "@/hooks/useAgentStatusWebSocket";
 
 function DashboardAgentContent() {
   const [chats, setChats] = useState<Chat[]>([]);
@@ -38,10 +41,24 @@ function DashboardAgentContent() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [agentList, setAgentList] = useState<AgentUser[]>([]);
+  const [initialAgentList, setInitialAgentList] = useState<OnlineAgent[]>([]);
 
   const user = useAuthStore((state) => state.user);
   const token = useAuthStore((state) => state.token);
+
+  // Real-time online agents list via WebSocket (dipakai untuk dropdown transfer)
+  const agentList = useAgentStatusWebSocket(initialAgentList, user?.id);
+
+  // Re-fetch daftar agent online (dipanggil saat modal transfer dibuka)
+  const refreshOnlineAgents = () => {
+    if (token) {
+      console.log("[DEBUG] refreshOnlineAgents called");
+      getOnlineAgents(token).then((list) => {
+        console.log("[DEBUG] refreshOnlineAgents result:", list);
+        setInitialAgentList(list);
+      }).catch((e) => console.error("[DEBUG] refreshOnlineAgents error:", e));
+    }
+  };
 
   const isFirstLoadRef = useRef(true);
 
@@ -145,10 +162,11 @@ function DashboardAgentContent() {
   useEffect(() => {
     loadChats();
 
-    // Load agent list untuk fitur transfer
+    // Load snapshot agent online untuk fitur transfer (update selanjutnya via WebSocket)
     if (token) {
-      getAgentList(token).then(setAgentList).catch(() => {});
+      getOnlineAgents(token).then(setInitialAgentList).catch(() => {});
     }
+
 
     // Check if we need to refresh after claiming ticket
     const searchParams = new URLSearchParams(window.location.search);
@@ -159,6 +177,31 @@ function DashboardAgentContent() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]); // Re-load when token changes
+
+  // ================= AGENT HEARTBEAT =================
+  // Kirim heartbeat berkala agar backend tahu agent masih aktif (safety net)
+  // Status online/offline utamanya dikontrol oleh login/logout di backend
+  useEffect(() => {
+    if (!token) return;
+
+    // Heartbeat setiap 90 detik
+    const heartbeatInterval = setInterval(() => {
+      sendAgentHeartbeat(token);
+    }, 90000);
+
+    // Safety net: saat tab ditutup paksa (bukan logout normal),
+    // kirim offline via keepalive fetch agar status tersync
+    const handleBeforeUnload = () => {
+      setAgentOfflineBeacon(token);
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      clearInterval(heartbeatInterval);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   // ================= REFRESH ON PAGE FOCUS =================
   // Refresh chats when user returns to the page (e.g., after claiming ticket)
@@ -494,6 +537,7 @@ function DashboardAgentContent() {
                       }
                       onOpenCustomer={() => setShowCustomer((v) => !v)}
                       onTransferTicket={handleTransferTicket}
+                      onOpenTransfer={refreshOnlineAgents}
                       availableAgents={agentList}
                       onNewMessage={loadChats}
                     />

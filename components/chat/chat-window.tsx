@@ -37,7 +37,7 @@ import {
   Play,
 } from "lucide-react";
 import { Chat, Message, ChatMode, ShortcutMessage } from "@/app/types/types";
-import { getShortcuts, duplicateShortcut, uploadFile, UploadResponse, AgentUser } from "@/lib/api";
+import { getShortcuts, duplicateShortcut, uploadFile, UploadResponse, OnlineAgent } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import { useTypingWebSocket } from "@/hooks/useTypingWebSocket";
 
@@ -54,7 +54,8 @@ interface ChatWindowProps {
   onCustomerMessage: (text: string) => void;
   onOpenCustomer?: () => void;
   onTransferTicket?: (toAgentId: number, reason: string) => Promise<void>;
-  availableAgents?: AgentUser[];
+  onOpenTransfer?: () => void;
+  availableAgents?: OnlineAgent[];
   onNewMessage?: () => void;
 }
 
@@ -65,6 +66,7 @@ function ChatWindow({
   onPauseChat,
   onOpenCustomer,
   onTransferTicket,
+  onOpenTransfer,
   availableAgents = [],
   onNewMessage,
 }: ChatWindowProps) {
@@ -433,7 +435,10 @@ function ChatWindow({
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setShowTransferModal(true)}
+              onClick={() => {
+                onOpenTransfer?.();
+                setShowTransferModal(true);
+              }}
               disabled={mode !== "agent" || isClosed}
               className="h-7 w-7 sm:w-auto sm:px-2 text-xs p-0 sm:p-2 text-orange-600 border-orange-300 hover:bg-orange-50"
               title="Transfer"
@@ -970,33 +975,35 @@ function ChatWindow({
               <label className="text-xs font-medium text-neutral-600 mb-2 block">
                 Pilih Agent Tujuan
               </label>
-              {availableAgents.filter((a) => a.id !== currentUser?.id).length === 0 ? (
+              {availableAgents.length === 0 ? (
                 <p className="text-sm text-neutral-400 py-3 text-center border rounded-lg">
-                  Tidak ada agent lain yang tersedia
+                  Tidak ada agent yang sedang online
                 </p>
               ) : (
                 <div className="border rounded-lg divide-y max-h-48 overflow-y-auto">
-                  {availableAgents
-                    .filter((a) => a.id !== currentUser?.id)
-                    .map((agent) => (
+                  {availableAgents.map((agent) => (
                       <button
-                        key={agent.id}
+                        key={agent.agent_id}
                         type="button"
-                        onClick={() => setSelectedTransferAgentId(agent.id)}
+                        onClick={() => setSelectedTransferAgentId(agent.agent_id)}
                         className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-colors ${
-                          selectedTransferAgentId === agent.id
+                          selectedTransferAgentId === agent.agent_id
                             ? "bg-orange-50 border-l-2 border-orange-500"
                             : "hover:bg-neutral-50"
                         }`}
                       >
-                        <div className="h-8 w-8 rounded-full bg-neutral-200 flex items-center justify-center text-xs font-semibold text-neutral-700 shrink-0">
-                          {agent.name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)}
+                        <div className="relative h-8 w-8 shrink-0">
+                          <div className="h-8 w-8 rounded-full bg-neutral-200 flex items-center justify-center text-xs font-semibold text-neutral-700">
+                            {agent.name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)}
+                          </div>
+                          {/* Indikator hijau online */}
+                          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-white" />
                         </div>
                         <div>
                           <p className="text-sm font-medium text-neutral-800">{agent.name}</p>
-                          <p className="text-xs text-neutral-400">{agent.email}</p>
+                          <p className="text-xs text-neutral-400">{agent.display_name}</p>
                         </div>
-                        {selectedTransferAgentId === agent.id && (
+                        {selectedTransferAgentId === agent.agent_id && (
                           <Check className="h-4 w-4 text-orange-500 ml-auto" />
                         )}
                       </button>

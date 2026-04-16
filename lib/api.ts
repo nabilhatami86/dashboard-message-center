@@ -52,6 +52,18 @@ export async function login(
   return response.json();
 }
 
+// Panggil backend logout (set agent offline di server)
+export async function logoutAgent(token: string): Promise<void> {
+  try {
+    await fetch(`${API_BASE_URL}/auth/logout`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch {
+    // abaikan error saat logout
+  }
+}
+
 // =====================
 // CHAT API
 // =====================
@@ -417,6 +429,9 @@ export interface AgentUser {
   phone?: string;
   username: string;
   role: "agent";
+  display_name?: string;
+  status?: string;
+  is_available?: boolean;
   online?: boolean;
 }
 
@@ -740,6 +755,82 @@ export async function resolveTicket(
   return response.json();
 }
 
+// =====================
+// AGENT STATUS & HEARTBEAT
+// =====================
+
+// Update status agent (online/offline/busy/break)
+export async function updateAgentStatus(
+  token: string,
+  status: "online" | "offline" | "busy" | "break",
+  isAvailable: boolean
+): Promise<void> {
+  try {
+    await fetch(`${API_BASE_URL}/agent/chats/status`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ status, is_available: isAvailable }),
+    });
+  } catch {
+    // silently ignore
+  }
+}
+
+// Kirim heartbeat untuk menjaga status online tetap aktif
+export async function sendAgentHeartbeat(token: string): Promise<void> {
+  try {
+    await fetch(`${API_BASE_URL}/agent/chats/heartbeat`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch {
+    // silently ignore
+  }
+}
+
+// Set offline saat tab ditutup (keepalive agar request tetap terkirim saat page unload)
+export function setAgentOfflineBeacon(token: string): void {
+  try {
+    fetch(`${API_BASE_URL}/agent/chats/status`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ status: "offline", is_available: false }),
+      keepalive: true,
+    });
+  } catch {
+    // silently ignore
+  }
+}
+
+// =====================
+// ONLINE AGENTS (for transfer)
+// =====================
+export interface OnlineAgent {
+  agent_id: number;
+  name: string;
+  display_name: string;
+  status: string;
+  is_available: boolean;
+}
+
+export async function getOnlineAgents(token: string): Promise<OnlineAgent[]> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/tickets/online-agents`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) return [];
+    return response.json();
+  } catch {
+    return [];
+  }
+}
+
 // Transfer ticket ke agent lain (by chat_id)
 export async function transferTicketByChat(
   chatId: number,
@@ -782,6 +873,74 @@ export async function getTicketStats(
   }
 
   return response.json();
+}
+
+// =====================
+// AGENT MANAGEMENT (Admin & Agent self)
+// =====================
+
+export async function createAgent(token: string, data: {
+  name: string;
+  email: string;
+  username: string;
+  password: string;
+  phone?: string;
+  display_name?: string;
+}): Promise<AgentUser> {
+  const res = await fetch(`${API_BASE_URL}/users/agents`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Gagal membuat agent");
+  }
+  return res.json();
+}
+
+export async function updateAgentFull(token: string, userId: number, data: {
+  name?: string;
+  email?: string;
+  username?: string;
+  password?: string;
+  phone?: string;
+  display_name?: string;
+}): Promise<AgentUser> {
+  const res = await fetch(`${API_BASE_URL}/users/agents/${userId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Gagal mengupdate agent");
+  }
+  return res.json();
+}
+
+export async function deleteAgentById(token: string, userId: number): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/users/agents/${userId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Gagal menghapus agent");
+  }
+}
+
+export async function updateMyTag(token: string, displayName: string): Promise<{ message: string; display_name: string }> {
+  const res = await fetch(`${API_BASE_URL}/users/agents/me/tag`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ display_name: displayName }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Gagal mengupdate tag");
+  }
+  return res.json();
 }
 
 // Get agent profile

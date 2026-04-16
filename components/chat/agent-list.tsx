@@ -2,7 +2,7 @@
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { User } from "lucide-react";
+import { Users } from "lucide-react";
 import { AgentUser } from "@/lib/api";
 
 interface Props {
@@ -11,80 +11,91 @@ interface Props {
   onSelectAgent: (agent: AgentUser) => void;
 }
 
-export default function AgentList({
-  agents,
-  activeAgentId,
-  onSelectAgent,
-}: Props) {
+export default function AgentList({ agents, activeAgentId, onSelectAgent }: Props) {
   return (
-    <div className="flex h-full flex-col overflow-hidden border-r border-neutral-200 bg-white">
-      {/* HEADER */}
-      <header className="flex h-16 items-center justify-between border-b border-neutral-200 bg-gradient-to-r from-blue-50 to-indigo-50 px-4">
+    <div className="flex h-full flex-col overflow-hidden border-r border-neutral-100 bg-white">
+      {/* Header */}
+      <header className="flex h-14 items-center justify-between border-b border-neutral-100 px-4 shrink-0">
         <div className="flex items-center gap-2">
-          <User className="h-5 w-5 text-blue-600" />
-          <h2 className="text-lg font-bold text-neutral-900">Agents</h2>
+          <div className="h-7 w-7 rounded-lg bg-blue-100 flex items-center justify-center">
+            <Users className="h-4 w-4 text-blue-600" />
+          </div>
+          <h2 className="text-base font-bold text-neutral-900">Agents</h2>
         </div>
-        <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+        <span className="inline-flex items-center justify-center min-w-5.5 h-5 px-1.5 rounded-full bg-blue-100 text-blue-700 text-[11px] font-semibold tabular-nums">
           {agents.length}
-        </Badge>
+        </span>
       </header>
 
-      {/* AGENT LIST */}
+      {/* Agent List */}
       <div className="flex-1 overflow-y-auto">
         {agents.length === 0 ? (
-          <div className="flex h-full items-center justify-center p-4">
-            <p className="text-center text-sm text-neutral-500">
-              No agents available
-            </p>
+          <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+            <div className="h-12 w-12 rounded-2xl bg-neutral-100 flex items-center justify-center">
+              <Users className="h-5 w-5 text-neutral-300" />
+            </div>
+            <p className="text-sm font-medium text-neutral-500">Tidak ada agent tersedia</p>
           </div>
         ) : (
-          <div className="space-y-1 p-2">
+          <div className="space-y-0.5 p-2">
             {agents.map((agent) => {
               const isActive = activeAgentId === agent.id;
+              const initials = agent.name
+                .split(" ")
+                .slice(0, 2)
+                .map((n) => n[0])
+                .join("")
+                .toUpperCase();
 
               return (
                 <button
                   key={agent.id}
                   onClick={() => onSelectAgent(agent)}
-                  className={`w-full rounded-xl p-3 text-left transition-all ${
+                  className={`w-full rounded-xl p-3 text-left transition-all duration-150 ${
                     isActive
-                      ? "bg-blue-100 shadow-md ring-2 ring-blue-500 ring-opacity-50"
-                      : "bg-white hover:bg-neutral-50 hover:shadow-sm"
+                      ? "bg-blue-50 ring-1 ring-blue-200"
+                      : "hover:bg-neutral-50"
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <Avatar className="h-11 w-11">
-                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-semibold">
-                          {agent.name.charAt(0).toUpperCase()}
+                    {/* Avatar with online dot */}
+                    <div className="relative shrink-0">
+                      <Avatar className="h-10 w-10">
+                        <AvatarFallback
+                          className={`text-sm font-semibold ${
+                            isActive
+                              ? "bg-blue-100 text-blue-700"
+                              : "bg-neutral-100 text-neutral-600"
+                          }`}
+                        >
+                          {initials}
                         </AvatarFallback>
                       </Avatar>
                       {agent.online && (
-                        <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500"></span>
+                        <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500" />
                       )}
                     </div>
 
-                    <div className="flex-1 overflow-hidden">
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
-                        <h3
-                          className={`truncate font-semibold ${
-                            isActive ? "text-blue-900" : "text-neutral-900"
+                        <p className={`text-sm font-semibold truncate ${isActive ? "text-blue-900" : "text-neutral-900"}`}>
+                          {agent.name}
+                        </p>
+                        <Badge
+                          variant="secondary"
+                          className={`text-[10px] px-1.5 py-0 h-4 border-0 shrink-0 ${
+                            agent.online
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-neutral-100 text-neutral-500"
                           }`}
                         >
-                          {agent.name}
-                        </h3>
+                          {agent.online ? "Online" : "Offline"}
+                        </Badge>
                       </div>
-
-                      <div className="flex items-center gap-2 mt-1">
-                        <p className="text-xs text-neutral-500 truncate">
-                          {agent.email}
-                        </p>
-                      </div>
-
+                      <p className="text-xs text-neutral-400 truncate mt-0.5">{agent.email}</p>
                       {agent.phone && (
-                        <p className="text-xs text-neutral-600 mt-0.5">
-                          {agent.phone}
-                        </p>
+                        <p className="text-xs text-neutral-500 mt-0.5">{agent.phone}</p>
                       )}
                     </div>
                   </div>

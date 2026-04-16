@@ -42,21 +42,21 @@ function ChatList({
   const allSelected = chats.length > 0 && selectedChats.size === chats.length;
 
   return (
-    <aside className="h-full min-w-0 border-r border-neutral-200 bg-white flex flex-col text-neutral-900">
+    <aside className="h-full min-w-0 bg-white flex flex-col text-neutral-900">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 sm:px-4 h-14 border-b border-neutral-200 flex-shrink-0">
+      <div className="flex items-center justify-between px-4 h-14 border-b border-neutral-100 shrink-0 bg-white">
         {isSelectMode ? (
           <>
-            <div className="flex items-center gap-1.5 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
               <Button
                 size="icon"
                 variant="ghost"
                 onClick={onToggleSelectMode}
-                className="h-8 w-8 shrink-0 hover:bg-neutral-100"
+                className="h-7 w-7 shrink-0 rounded-lg hover:bg-neutral-100"
               >
                 <X className="h-4 w-4" />
               </Button>
-              <p className="font-semibold text-sm truncate">
+              <p className="font-semibold text-sm truncate text-neutral-800">
                 {selectedChats.size > 0 ? `${selectedChats.size} dipilih` : "Pilih chat"}
               </p>
             </div>
@@ -65,18 +65,18 @@ function ChatList({
                 size="sm"
                 variant="ghost"
                 onClick={onSelectAll}
-                className="text-xs px-2 hover:bg-neutral-100"
+                className="text-xs px-2.5 h-7 rounded-lg hover:bg-neutral-100 text-neutral-600"
               >
-                {allSelected ? "Batal semua" : "Semua"}
+                {allSelected ? "Batal" : "Semua"}
               </Button>
               {selectedChats.size > 0 && (
                 <Button
                   size="sm"
                   variant="destructive"
                   onClick={onBulkDelete}
-                  className="text-xs px-2 bg-red-500 hover:bg-red-600"
+                  className="text-xs px-2.5 h-7 rounded-lg bg-red-500 hover:bg-red-600 gap-1"
                 >
-                  <Trash2 className="h-3.5 w-3.5 sm:mr-1" />
+                  <Trash2 className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Hapus</span>
                 </Button>
               )}
@@ -85,23 +85,23 @@ function ChatList({
         ) : (
           <>
             <div className="flex items-center gap-2 min-w-0">
-              <p className="font-semibold tracking-wide">Inbox</p>
-              <Badge className="bg-neutral-100 text-neutral-600 text-xs font-medium border-0 px-1.5">
+              <p className="font-bold text-neutral-900 text-base">Inbox</p>
+              <span className="inline-flex items-center justify-center min-w-5.5 h-5 px-1.5 rounded-full bg-blue-100 text-blue-700 text-[11px] font-semibold tabular-nums">
                 {chats.length}
-              </Badge>
+              </span>
             </div>
             <div className="flex gap-0.5 shrink-0">
-              <Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-neutral-100">
-                <Filter className="h-4 w-4 text-neutral-500" />
+              <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg hover:bg-neutral-100">
+                <Filter className="h-3.5 w-3.5 text-neutral-400" />
               </Button>
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-8 w-8 hover:bg-neutral-100"
+                className="h-7 w-7 rounded-lg hover:bg-neutral-100"
                 onClick={onToggleSelectMode}
                 title="Pilih untuk hapus"
               >
-                <CheckSquare className="h-4 w-4 text-neutral-500" />
+                <CheckSquare className="h-3.5 w-3.5 text-neutral-400" />
               </Button>
             </div>
           </>
@@ -109,7 +109,7 @@ function ChatList({
       </div>
 
       {/* Search */}
-      <div className="px-3 py-2.5 border-b border-neutral-200 flex-shrink-0">
+      <div className="px-3 py-2.5 border-b border-neutral-200 shrink-0">
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-400" />
           <input
@@ -210,7 +210,7 @@ function ChatList({
                       </AvatarFallback>
                     </Avatar>
                     {showUnread && (
-                      <span className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] rounded-full bg-red-500 text-white text-[10px] font-medium flex items-center justify-center px-1 leading-none">
+                      <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 rounded-full bg-red-500 text-white text-[10px] font-medium flex items-center justify-center px-1 leading-none">
                         {unreadCount > 99 ? "99+" : unreadCount}
                       </span>
                     )}
@@ -244,7 +244,7 @@ function ChatList({
                       {chat.assignedAgent && (
                         <Badge
                           variant="secondary"
-                          className="text-[10px] px-1 py-0 h-3.5 bg-purple-100 text-purple-700 border-0 truncate max-w-[80px]"
+                          className="text-[10px] px-1 py-0 h-3.5 bg-purple-100 text-purple-700 border-0 truncate max-w-20"
                         >
                           {chat.assignedAgent.name}
                         </Badge>
