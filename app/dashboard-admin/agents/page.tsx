@@ -103,10 +103,18 @@ function AgentModal({ mode, initial, onClose, onSave }: AgentModalProps) {
 
           {[
             { label: "Nama Lengkap", key: "name" as const, required: true },
-            { label: "Email", key: "email" as const, required: true, type: "email" },
+            {
+              label: "Email",
+              key: "email" as const,
+              required: true,
+              type: "email",
+            },
             { label: "Username", key: "username" as const, required: true },
             {
-              label: mode === "create" ? "Password" : "Password Baru (kosongkan jika tidak diubah)",
+              label:
+                mode === "create"
+                  ? "Password"
+                  : "Password Baru (kosongkan jika tidak diubah)",
               key: "password" as const,
               required: mode === "create",
               type: "password",
@@ -153,21 +161,42 @@ function AgentModal({ mode, initial, onClose, onSave }: AgentModalProps) {
 }
 
 // ─── Delete Confirm ────────────────────────────────────────────────────────────
-function DeleteConfirm({ agent, onClose, onConfirm }: { agent: AgentUser; onClose: () => void; onConfirm: () => Promise<void> }) {
+function DeleteConfirm({
+  agent,
+  onClose,
+  onConfirm,
+}: {
+  agent: AgentUser;
+  onClose: () => void;
+  onConfirm: () => Promise<void>;
+}) {
   const [loading, setLoading] = useState(false);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="w-full max-w-sm bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl p-6">
-        <h2 className="font-semibold text-neutral-900 dark:text-white text-lg mb-2">Hapus Agent</h2>
+        <h2 className="font-semibold text-neutral-900 dark:text-white text-lg mb-2">
+          Hapus Agent
+        </h2>
         <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-6">
-          Yakin ingin menghapus agent <span className="font-semibold text-neutral-800 dark:text-white">{agent.name}</span>? Tindakan ini tidak bisa dibatalkan.
+          Yakin ingin menghapus agent{" "}
+          <span className="font-semibold text-neutral-800 dark:text-white">
+            {agent.name}
+          </span>
+          ? Tindakan ini tidak bisa dibatalkan.
         </p>
         <div className="flex gap-3">
-          <button onClick={onClose} className="flex-1 py-2 rounded-xl border border-neutral-200 dark:border-neutral-700 text-sm font-medium text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2 rounded-xl border border-neutral-200 dark:border-neutral-700 text-sm font-medium text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800"
+          >
             Batal
           </button>
           <button
-            onClick={async () => { setLoading(true); await onConfirm(); setLoading(false); }}
+            onClick={async () => {
+              setLoading(true);
+              await onConfirm();
+              setLoading(false);
+            }}
             disabled={loading}
             className="flex-1 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-60"
           >
@@ -183,14 +212,19 @@ function DeleteConfirm({ agent, onClose, onConfirm }: { agent: AgentUser; onClos
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status?: string }) {
   const map: Record<string, string> = {
-    online: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-    offline: "bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400",
+    online:
+      "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+    offline:
+      "bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400",
     busy: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-    break: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
+    break:
+      "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
   };
   const s = status ?? "offline";
   return (
-    <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${map[s] ?? map.offline}`}>
+    <span
+      className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${map[s] ?? map.offline}`}
+    >
       {s}
     </span>
   );
@@ -216,7 +250,9 @@ function AgentsPage() {
     }
   };
 
-  useEffect(() => { fetchAgents(); }, []);
+  useEffect(() => {
+    fetchAgents();
+  }, []);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -246,8 +282,6 @@ function AgentsPage() {
 
   return (
     <div className="flex h-screen bg-neutral-50 dark:bg-neutral-950 overflow-hidden">
-      <SimpleSidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
-
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top bar */}
         <div className="flex items-center gap-4 px-6 py-4 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 shrink-0">
@@ -258,8 +292,12 @@ function AgentsPage() {
             <Menu className="h-5 w-5 text-neutral-600 dark:text-neutral-400" />
           </button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-semibold text-neutral-900 dark:text-white">Manajemen Agent</h1>
-            <p className="text-xs text-neutral-500 dark:text-neutral-400">{agents.length} agent terdaftar</p>
+            <h1 className="text-lg font-semibold text-neutral-900 dark:text-white">
+              Manajemen Agent
+            </h1>
+            <p className="text-xs text-neutral-500 dark:text-neutral-400">
+              {agents.length} agent terdaftar
+            </p>
           </div>
           <button
             onClick={() => setModal("create")}
@@ -287,16 +325,25 @@ function AgentsPage() {
                 <thead>
                   <tr className="border-b border-neutral-100 dark:border-neutral-800 text-xs text-neutral-500 dark:text-neutral-400 uppercase tracking-wide">
                     <th className="text-left px-4 py-3 font-medium">Nama</th>
-                    <th className="text-left px-4 py-3 font-medium hidden md:table-cell">Username</th>
-                    <th className="text-left px-4 py-3 font-medium hidden lg:table-cell">Email</th>
-                    <th className="text-left px-4 py-3 font-medium hidden sm:table-cell">Tag</th>
+                    <th className="text-left px-4 py-3 font-medium hidden md:table-cell">
+                      Username
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium hidden lg:table-cell">
+                      Email
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium hidden sm:table-cell">
+                      Tag
+                    </th>
                     <th className="text-left px-4 py-3 font-medium">Status</th>
                     <th className="text-right px-4 py-3 font-medium">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
                   {agents.map((agent) => (
-                    <tr key={agent.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors">
+                    <tr
+                      key={agent.id}
+                      className="hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors"
+                    >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
@@ -305,8 +352,12 @@ function AgentsPage() {
                             </span>
                           </div>
                           <div>
-                            <p className="font-medium text-neutral-900 dark:text-white">{agent.name}</p>
-                            <p className="text-xs text-neutral-400 md:hidden">@{agent.username}</p>
+                            <p className="font-medium text-neutral-900 dark:text-white">
+                              {agent.name}
+                            </p>
+                            <p className="text-xs text-neutral-400 md:hidden">
+                              @{agent.username}
+                            </p>
                           </div>
                         </div>
                       </td>
@@ -327,7 +378,10 @@ function AgentsPage() {
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-2">
                           <button
-                            onClick={() => { setEditTarget(agent); setModal("edit"); }}
+                            onClick={() => {
+                              setEditTarget(agent);
+                              setModal("edit");
+                            }}
                             className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-neutral-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                             title="Edit"
                           >
@@ -353,13 +407,29 @@ function AgentsPage() {
 
       {/* Modals */}
       {modal === "create" && (
-        <AgentModal mode="create" onClose={() => setModal(null)} onSave={handleCreate} />
+        <AgentModal
+          mode="create"
+          onClose={() => setModal(null)}
+          onSave={handleCreate}
+        />
       )}
       {modal === "edit" && editTarget && (
-        <AgentModal mode="edit" initial={editTarget} onClose={() => { setModal(null); setEditTarget(null); }} onSave={handleEdit} />
+        <AgentModal
+          mode="edit"
+          initial={editTarget}
+          onClose={() => {
+            setModal(null);
+            setEditTarget(null);
+          }}
+          onSave={handleEdit}
+        />
       )}
       {deleteTarget && (
-        <DeleteConfirm agent={deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={handleDelete} />
+        <DeleteConfirm
+          agent={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={handleDelete}
+        />
       )}
 
       {/* Toast */}
@@ -375,7 +445,7 @@ function AgentsPage() {
 
 export default function Page() {
   return (
-    <ProtectedRoute allowedRoles={["admin"]}>
+    <ProtectedRoute requiredRole={["admin"]}>
       <AgentsPage />
     </ProtectedRoute>
   );
