@@ -67,6 +67,13 @@ export function transformChatResponse(
     // Group information (for WhatsApp group chats)
     group_id: chat.group_id,
     group_name: chat.group_name,
+
+    // Transfer info
+    transferNote: chat.transfer_note,
+    transferFromAgent: chat.transfer_from_agent,
+
+    // Priority
+    priority: chat.priority,
   };
 }
 

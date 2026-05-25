@@ -11,15 +11,24 @@ function getWsBase(): string {
 /**
  * Subscribes to the global /ws/agents channel.
  * Keeps the list of online agents up-to-date in real-time.
+ * Also calls onChatTransferred when a ticket is transferred to the current user.
  *
  * @param initialAgents - Snapshot dari GET /tickets/online-agents (fetch awal)
  * @param currentUserId - ID user yang sedang login (dikecualikan dari list)
+ * @param onChatTransferred - Dipanggil saat ada ticket yang ditransfer ke user ini
  */
 export function useAgentStatusWebSocket(
   initialAgents: OnlineAgent[],
-  currentUserId?: number
+  currentUserId?: number,
+  onChatTransferred?: () => void
 ): OnlineAgent[] {
   const [agents, setAgents] = useState<OnlineAgent[]>(initialAgents);
+  const onChatTransferredRef = useRef(onChatTransferred);
+
+  // Sync callback ref agar selalu up-to-date tanpa restart WebSocket
+  useEffect(() => {
+    onChatTransferredRef.current = onChatTransferred;
+  }, [onChatTransferred]);
 
   // Sync saat initial fetch selesai
   useEffect(() => {
@@ -44,6 +53,21 @@ export function useAgentStatusWebSocket(
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+
+          if (data.type === "ticket_transferred") {
+            // Jika ticket ini ditransfer ke user saat ini, reload daftar chat
+            if (data.to_agent_id === currentUserId) {
+              onChatTransferredRef.current?.();
+            }
+            return;
+          }
+
+          if (data.type === "ticket_claimed") {
+            // Ticket diambil dari queue oleh agent lain — semua agent reload agar hilang dari list
+            onChatTransferredRef.current?.();
+            return;
+          }
+
           if (data.type !== "agent_status") return;
 
           const { agent_id, name, display_name, status, is_available } = data as {

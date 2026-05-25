@@ -20,6 +20,7 @@ import {
   transferTicketByChat,
   sendAgentHeartbeat,
   setAgentOfflineBeacon,
+  updateChatPriority,
   OnlineAgent,
 } from "@/lib/api";
 import {
@@ -46,8 +47,12 @@ function DashboardAgentContent() {
   const user = useAuthStore((state) => state.user);
   const token = useAuthStore((state) => state.token);
 
+  // Ref wrapper agar loadChats bisa dipakai sebelum didefinisikan (avoid hoisting error)
+  const loadChatsRef = useRef<() => void>(() => {});
+
   // Real-time online agents list via WebSocket (dipakai untuk dropdown transfer)
-  const agentList = useAgentStatusWebSocket(initialAgentList, user?.id);
+  // onChatTransferred: reload chat saat ada ticket yang ditransfer ke agent ini
+  const agentList = useAgentStatusWebSocket(initialAgentList, user?.id, () => loadChatsRef.current());
 
   // Re-fetch daftar agent online (dipanggil saat modal transfer dibuka)
   const refreshOnlineAgents = () => {
@@ -127,6 +132,8 @@ function DashboardAgentContent() {
       }
     }
   };
+  // Selalu update ref agar WebSocket hook punya versi terbaru
+  loadChatsRef.current = loadChats;
 
   // Smart refresh - mirip WhatsApp
   const { markActivity: markChatActivity } = useSmartRefresh({
@@ -367,6 +374,24 @@ function DashboardAgentContent() {
     setActiveChatId(null);
   };
 
+  // ================= UPDATE PRIORITY =================
+  const handleUpdatePriority = async (priority: "low" | "medium" | "high") => {
+    if (!token || !activeChatId) return;
+
+    // Optimistic update
+    setChats((prev) =>
+      prev.map((c) => (c.id === activeChatId ? { ...c, priority } : c))
+    );
+
+    try {
+      await updateChatPriority(activeChatId, priority, token);
+    } catch (err) {
+      console.error("Failed to update priority:", err);
+      // Revert on error
+      await loadChats();
+    }
+  };
+
   const handleCustomerMessage = async (chatId: number, text: string) => {
     if (!token || !user) return;
 
@@ -552,6 +577,7 @@ function DashboardAgentContent() {
                       <CustomerDetail
                         chat={activeChat}
                         onClose={() => setShowCustomer(false)}
+                        onUpdatePriority={handleUpdatePriority}
                       />
                     </div>
                   </div>

@@ -23,7 +23,7 @@ export interface Message {
   status?: MessageStatus;
   /** Media attachment fields */
   media_url?: string | null;
-  media_type?: string | null;   // "image", "video", "document", "audio"
+  media_type?: string | null; // "image", "video", "document", "audio"
   media_filename?: string | null;
   /** For group messages: info about who sent the message */
   participant_phone?: string | null;
@@ -62,6 +62,7 @@ export interface Chat {
   channel: ChatChannel;
   online: boolean;
   unread: number;
+  priority?: string | null; // "low", "medium", "high"
 
   profile?: CustomerProfile;
   messages: Message[];
@@ -80,6 +81,10 @@ export interface Chat {
   /** group information (for WhatsApp group chats) */
   group_id?: string | null;
   group_name?: string | null;
+
+  /** transfer info: ada saat chat baru ditransfer dari agent lain */
+  transferNote?: string | null;
+  transferFromAgent?: string | null;
 }
 
 /* =====================

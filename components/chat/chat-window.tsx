@@ -98,7 +98,7 @@ function ChatWindow({
   const token = useAuthStore((s) => s.token);
 
   // Real-time typing indicator + new message push via WebSocket
-  const { customerTyping, sendAgentTyping, wsConnected } = useTypingWebSocket(chat.id, onNewMessage);
+  const { customerTyping, botTyping, sendAgentTyping, wsConnected } = useTypingWebSocket(chat.id, onNewMessage);
 
   // Ref untuk selalu punya nilai message terbaru di cleanup
   const messageRef = useRef(message);
@@ -346,7 +346,7 @@ function ChatWindow({
   /** auto scroll */
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chat.messages.length, customerTyping]);
+  }, [chat.messages.length, customerTyping, botTyping]);
 
   return (
     <div className="flex flex-col h-full min-h-0 bg-white">
@@ -377,7 +377,20 @@ function ChatWindow({
             {chat.group_id && chat.group_name && (
               <p className="text-xs text-green-600 truncate">Dari: {chat.group_name}</p>
             )}
-            {customerTyping ? (
+            {botTyping ? (
+              <p className="text-xs text-emerald-500 flex items-center gap-1">
+                <span>mengetik</span>
+                <span className="flex gap-[3px] items-center">
+                  {[0, 1, 2].map((i) => (
+                    <span
+                      key={i}
+                      className="w-1 h-1 bg-emerald-500 rounded-full animate-bounce"
+                      style={{ animationDelay: `${i * 0.15}s` }}
+                    />
+                  ))}
+                </span>
+              </p>
+            ) : customerTyping ? (
               <p className="text-xs text-emerald-500 flex items-center gap-1">
                 <span>mengetik</span>
                 <span className="flex gap-[3px] items-center">
@@ -508,6 +521,19 @@ function ChatWindow({
               <div className={`flex items-center gap-2 text-xs border rounded-full px-3 py-1.5 ${systemInfoBanner.color}`}>
                 <systemInfoBanner.icon className="h-3.5 w-3.5 shrink-0" />
                 <span>{systemInfoBanner.text}</span>
+              </div>
+            </div>
+          )}
+
+          {/* NOTIF TRANSFER — tampil saat chat baru ditransfer dari agent lain */}
+          {chat.transferNote && chat.transferFromAgent && (
+            <div className="flex justify-center">
+              <div className="max-w-sm w-full bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm text-blue-800 flex flex-col gap-1">
+                <div className="flex items-center gap-2 font-semibold">
+                  <ArrowRightLeft className="h-4 w-4 shrink-0" />
+                  <span>Chat ditransfer{chat.transferFromAgent ? ` dari ${chat.transferFromAgent}` : ""}</span>
+                </div>
+                <p className="text-blue-700 text-xs leading-relaxed pl-6">{chat.transferNote}</p>
               </div>
             </div>
           )}
@@ -665,7 +691,7 @@ function ChatWindow({
               </div>
             );
           })}
-          {/* TYPING INDICATOR — gaya WhatsApp */}
+          {/* TYPING INDICATOR — customer */}
           {customerTyping && (
             <div className="flex justify-start">
               <div className="flex items-end gap-1">
@@ -683,6 +709,28 @@ function ChatWindow({
                     />
                   ))}
                 </div>
+              </div>
+            </div>
+          )}
+          {/* TYPING INDICATOR — bot/AI (right side, blue, matches agent bubbles) */}
+          {botTyping && (
+            <div className="flex justify-end">
+              <div className="flex items-end gap-2">
+                <div className="bg-blue-500 rounded-2xl rounded-br-sm px-4 py-2.5 shadow-sm flex flex-col gap-1.5">
+                  <span className="text-[10px] text-blue-100 font-medium tracking-wide">AI sedang mengetik</span>
+                  <div className="flex items-center gap-1.5">
+                    {[0, 1, 2].map((i) => (
+                      <span
+                        key={i}
+                        className="w-2 h-2 bg-white rounded-full animate-bounce opacity-80"
+                        style={{ animationDelay: `${i * 0.18}s` }}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <Avatar className="h-6 w-6 shrink-0 mb-1">
+                  <AvatarFallback className="text-[10px] bg-blue-100 text-blue-700">AI</AvatarFallback>
+                </Avatar>
               </div>
             </div>
           )}

@@ -35,9 +35,15 @@ function ChatList({
 }: ChatListProps) {
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredChats = chats.filter((chat) =>
-    chat.name?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
+
+  const filteredChats = chats
+    .filter((chat) => chat.name?.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => {
+      const pa = PRIORITY_ORDER[a.priority ?? "medium"] ?? 1;
+      const pb = PRIORITY_ORDER[b.priority ?? "medium"] ?? 1;
+      return pa - pb;
+    });
 
   const allSelected = chats.length > 0 && selectedChats.size === chats.length;
 
@@ -241,6 +247,18 @@ function ChatList({
                       >
                         {chat.group_id ? "Grup" : "Pribadi"}
                       </Badge>
+                      {chat.priority && chat.priority !== "medium" && (
+                        <Badge
+                          variant="secondary"
+                          className={`text-[10px] px-1 py-0 h-3.5 border-0 shrink-0 font-semibold ${
+                            chat.priority === "high"
+                              ? "bg-orange-100 text-orange-700"
+                              : "bg-red-100 text-red-700"
+                          }`}
+                        >
+                          {chat.priority === "high" ? "High" : "Urgent"}
+                        </Badge>
+                      )}
                       {chat.assignedAgent && (
                         <Badge
                           variant="secondary"

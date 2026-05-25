@@ -10,6 +10,7 @@ function getWsBase(): string {
 
 interface UseTypingWebSocketResult {
   customerTyping: boolean;
+  botTyping: boolean;
   sendAgentTyping: (isTyping: boolean) => void;
   wsConnected: boolean;
 }
@@ -19,6 +20,7 @@ export function useTypingWebSocket(
   onNewMessage?: () => void,
 ): UseTypingWebSocketResult {
   const [customerTyping, setCustomerTyping] = useState(false);
+  const [botTyping, setBotTyping] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -55,7 +57,10 @@ export function useTypingWebSocket(
             } else {
               setCustomerTyping(false);
             }
+          } else if (data.type === "typing" && data.sender === "bot") {
+            setBotTyping(data.is_typing === true);
           } else if (data.type === "new_message") {
+            setBotTyping(false);
             onNewMessageRef.current?.();
           }
         } catch {
@@ -66,6 +71,7 @@ export function useTypingWebSocket(
       ws.onclose = () => {
         setWsConnected(false);
         setCustomerTyping(false);
+        setBotTyping(false);
         wsRef.current = null;
         // Auto-reconnect after 3s unless the effect is cleaning up
         if (!destroyedRef.current) {
@@ -98,5 +104,5 @@ export function useTypingWebSocket(
     wsRef.current.send(JSON.stringify({ type: "typing", is_typing: isTyping }));
   }, []);
 
-  return { customerTyping, sendAgentTyping, wsConnected };
+  return { customerTyping, botTyping, sendAgentTyping, wsConnected };
 }

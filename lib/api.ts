@@ -30,7 +30,7 @@ export interface AdminUser {
 
 export async function login(
   username: string,
-  password: string
+  password: string,
 ): Promise<LoginResponse> {
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
     method: "POST",
@@ -89,6 +89,10 @@ export interface ChatResponse {
   // Group information (for WhatsApp group chats)
   group_id?: string | null;
   group_name?: string | null;
+  // Transfer info: ada saat chat baru ditransfer dari agent lain
+  transfer_note?: string | null;
+  transfer_from_agent?: string | null;
+  priority?: string | null; // "low", "medium", "high"
 }
 
 export interface MessageResponse {
@@ -106,6 +110,7 @@ export interface MessageResponse {
   // For group messages: info about who sent the message
   participant_phone?: string | null;
   participant_name?: string | null;
+  priority?: string | null; // "low", "medium", "high"
 }
 
 export async function getChats(token: string): Promise<ChatResponse[]> {
@@ -136,16 +141,18 @@ export async function getChats(token: string): Promise<ChatResponse[]> {
         // Return chat without messages if detail fetch fails
         return { ...chat, messages: [] };
       }
-    })
+    }),
   );
 
   // Filter out null (deleted chats)
-  return chatsWithMessages.filter((chat): chat is ChatResponse => chat !== null);
+  return chatsWithMessages.filter(
+    (chat): chat is ChatResponse => chat !== null,
+  );
 }
 
 export async function getChatById(
   chatId: number,
-  token?: string
+  token?: string,
 ): Promise<ChatResponse | null> {
   const headers: HeadersInit = {};
   if (token) {
@@ -181,7 +188,7 @@ export interface SendMessageRequest {
 
 export async function sendMessage(
   data: SendMessageRequest,
-  token: string
+  token: string,
 ): Promise<MessageResponse> {
   const response = await fetch(`${API_BASE_URL}/chats/messages`, {
     method: "POST",
@@ -226,7 +233,7 @@ export async function updateChatMode(
   chatId: number,
   mode: "bot" | "agent" | "paused" | "closed",
   token: string,
-  assignedAgentId?: number
+  assignedAgentId?: number,
 ): Promise<ChatResponse> {
   const body: Record<string, unknown> = { mode };
   if (assignedAgentId !== undefined) body.assigned_agent_id = assignedAgentId;
@@ -246,10 +253,26 @@ export async function updateChatMode(
   return response.json();
 }
 
+export async function updateChatPriority(
+  chatId: number,
+  priority: "low" | "medium" | "high",
+  token: string,
+): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/chats/${chatId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ priority }),
+  });
+  if (!response.ok) throw new Error("Failed to update priority");
+}
+
 export async function updateMessage(
   messageId: number,
   newText: string,
-  token: string
+  token: string,
 ): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/chats/messages/${messageId}`, {
     method: "PATCH",
@@ -267,7 +290,7 @@ export async function updateMessage(
 
 export async function deleteMessage(
   messageId: number,
-  token: string
+  token: string,
 ): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/chats/messages/${messageId}`, {
     method: "DELETE",
@@ -292,7 +315,7 @@ export interface UploadResponse {
 
 export async function uploadFile(
   file: File,
-  token: string
+  token: string,
 ): Promise<UploadResponse> {
   const formData = new FormData();
   formData.append("file", file);
@@ -333,7 +356,7 @@ export interface AdminMessageResponse {
 
 // Get admin chat messages from backend
 export async function getAdminChat(
-  agentId: number
+  agentId: number,
 ): Promise<AdminChatResponse> {
   try {
     const response = await fetch(`${API_BASE_URL}/admin-chat/${agentId}`, {
@@ -367,7 +390,7 @@ export async function sendAdminMessage(
   text: string,
   senderName: string,
   sender: "agent" | "admin" = "agent",
-  mode: "bot" | "manual" = "bot"
+  mode: "bot" | "manual" = "bot",
 ): Promise<AdminMessageResponse> {
   try {
     const response = await fetch(
@@ -383,7 +406,7 @@ export async function sendAdminMessage(
           sender_name: senderName,
           mode,
         }),
-      }
+      },
     );
 
     if (!response.ok) {
@@ -408,17 +431,10 @@ export async function getAdminList(token: string): Promise<AdminUser[]> {
       },
     });
 
-    if (!response.ok) {
-      console.warn("Failed to fetch admin list from backend, using mock data");
-      // Fallback ke mock data jika endpoint belum ada
-      return getMockAdminList();
-    }
-
+    if (!response.ok) return [];
     return response.json();
-  } catch (error) {
-    console.error("Error fetching admin list:", error);
-    // Fallback ke mock data
-    return getMockAdminList();
+  } catch {
+    return [];
   }
 }
 
@@ -469,36 +485,15 @@ function getMockAgentList(): AgentUser[] {
   ];
 }
 
-// Mock admin list untuk development
-function getMockAdminList(): AdminUser[] {
-  return [
-    {
-      id: 1,
-      name: "Admin Utama",
-      email: "admin@example.com",
-      phone: "087731624016",
-      username: "admin",
-      role: "admin",
-      online: true,
-    },
-    {
-      id: 2,
-      name: "Admin Support",
-      email: "support@example.com",
-      phone: "087731624016",
-      username: "admin_support",
-      role: "admin",
-      online: false,
-    },
-  ];
-}
 
 // =====================
 // TICKET QUEUE API (Simple FIFO Queue System)
 // =====================
 
 // Get available tickets (unassigned chats) from the queue
-export async function getAvailableTickets(token: string): Promise<ChatResponse[]> {
+export async function getAvailableTickets(
+  token: string,
+): Promise<ChatResponse[]> {
   const response = await fetch(`${API_BASE_URL}/chats/queue/available`, {
     headers: {
       Authorization: `Bearer ${token}`,
@@ -516,7 +511,7 @@ export async function getAvailableTickets(token: string): Promise<ChatResponse[]
 // Claim a ticket from the queue
 export async function claimTicketFromQueue(
   chatId: number,
-  token: string
+  token: string,
 ): Promise<ChatResponse> {
   const response = await fetch(`${API_BASE_URL}/chats/${chatId}/claim`, {
     method: "POST",
@@ -592,7 +587,7 @@ export interface AgentProfileResponse {
 // Get pending tickets (queue)
 export async function getPendingTickets(
   token: string,
-  limit: number = 50
+  limit: number = 50,
 ): Promise<TicketResponse[]> {
   const response = await fetch(`${API_BASE_URL}/tickets/queue?limit=${limit}`, {
     headers: {
@@ -610,7 +605,7 @@ export async function getPendingTickets(
 // Get my tickets (for agents)
 export async function getMyTickets(
   token: string,
-  status?: string
+  status?: string,
 ): Promise<TicketResponse[]> {
   const url = status
     ? `${API_BASE_URL}/tickets/my-tickets?status=${status}`
@@ -634,7 +629,7 @@ export async function getAllTickets(
   token: string,
   status?: string,
   priority?: string,
-  limit: number = 100
+  limit: number = 100,
 ): Promise<TicketResponse[]> {
   let url = `${API_BASE_URL}/tickets/all?limit=${limit}`;
   if (status) url += `&status=${status}`;
@@ -656,7 +651,7 @@ export async function getAllTickets(
 // Get ticket by ID
 export async function getTicketById(
   ticketId: number,
-  token: string
+  token: string,
 ): Promise<TicketResponse> {
   const response = await fetch(`${API_BASE_URL}/tickets/${ticketId}`, {
     headers: {
@@ -674,7 +669,7 @@ export async function getTicketById(
 // Agent claims ticket from queue
 export async function claimTicket(
   ticketId: number,
-  token: string
+  token: string,
 ): Promise<{ status: string; message: string; ticket: TicketResponse }> {
   const response = await fetch(`${API_BASE_URL}/tickets/${ticketId}/claim`, {
     method: "POST",
@@ -696,7 +691,7 @@ export async function assignTicket(
   ticketId: number,
   agentId: number,
   token: string,
-  reason?: string
+  reason?: string,
 ): Promise<{ status: string; message: string; ticket: TicketResponse }> {
   const response = await fetch(`${API_BASE_URL}/tickets/${ticketId}/assign`, {
     method: "POST",
@@ -718,7 +713,7 @@ export async function assignTicket(
 export async function updateTicketStatus(
   ticketId: number,
   status: TicketResponse["status"],
-  token: string
+  token: string,
 ): Promise<{ status: string; message: string; ticket: TicketResponse }> {
   const response = await fetch(`${API_BASE_URL}/tickets/${ticketId}/status`, {
     method: "PATCH",
@@ -739,7 +734,7 @@ export async function updateTicketStatus(
 // Resolve ticket
 export async function resolveTicket(
   ticketId: number,
-  token: string
+  token: string,
 ): Promise<{ status: string; message: string; ticket: TicketResponse }> {
   const response = await fetch(`${API_BASE_URL}/tickets/${ticketId}/resolve`, {
     method: "POST",
@@ -763,7 +758,7 @@ export async function resolveTicket(
 export async function updateAgentStatus(
   token: string,
   status: "online" | "offline" | "busy" | "break",
-  isAvailable: boolean
+  isAvailable: boolean,
 ): Promise<void> {
   try {
     await fetch(`${API_BASE_URL}/agent/chats/status`, {
@@ -777,6 +772,23 @@ export async function updateAgentStatus(
   } catch {
     // silently ignore
   }
+}
+
+// Statistik harian agent: resolved_today / handled_today
+export interface AgentDailyStats {
+  resolved_today: number;
+  handled_today: number;
+  date: string;
+}
+
+export async function getAgentDailyStats(
+  token: string,
+): Promise<AgentDailyStats> {
+  const response = await fetch(`${API_BASE_URL}/agent/chats/daily-stats`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error("Failed to fetch daily stats");
+  return response.json();
 }
 
 // Kirim heartbeat untuk menjaga status online tetap aktif
@@ -836,7 +848,7 @@ export async function transferTicketByChat(
   chatId: number,
   toAgentId: number,
   token: string,
-  reason?: string
+  reason?: string,
 ): Promise<{ status: string; message: string; ticket: TicketResponse }> {
   const response = await fetch(
     `${API_BASE_URL}/tickets/transfer-by-chat/${chatId}`,
@@ -847,7 +859,7 @@ export async function transferTicketByChat(
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ to_agent_id: toAgentId, reason }),
-    }
+    },
   );
 
   if (!response.ok) {
@@ -860,7 +872,7 @@ export async function transferTicketByChat(
 
 // Get ticket statistics
 export async function getTicketStats(
-  token: string
+  token: string,
 ): Promise<TicketStatsResponse> {
   const response = await fetch(`${API_BASE_URL}/tickets/stats/overview`, {
     headers: {
@@ -879,17 +891,23 @@ export async function getTicketStats(
 // AGENT MANAGEMENT (Admin & Agent self)
 // =====================
 
-export async function createAgent(token: string, data: {
-  name: string;
-  email: string;
-  username: string;
-  password: string;
-  phone?: string;
-  display_name?: string;
-}): Promise<AgentUser> {
+export async function createAgent(
+  token: string,
+  data: {
+    name: string;
+    email: string;
+    username: string;
+    password: string;
+    phone?: string;
+    display_name?: string;
+  },
+): Promise<AgentUser> {
   const res = await fetch(`${API_BASE_URL}/users/agents`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify(data),
   });
   if (!res.ok) {
@@ -899,17 +917,24 @@ export async function createAgent(token: string, data: {
   return res.json();
 }
 
-export async function updateAgentFull(token: string, userId: number, data: {
-  name?: string;
-  email?: string;
-  username?: string;
-  password?: string;
-  phone?: string;
-  display_name?: string;
-}): Promise<AgentUser> {
+export async function updateAgentFull(
+  token: string,
+  userId: number,
+  data: {
+    name?: string;
+    email?: string;
+    username?: string;
+    password?: string;
+    phone?: string;
+    display_name?: string;
+  },
+): Promise<AgentUser> {
   const res = await fetch(`${API_BASE_URL}/users/agents/${userId}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify(data),
   });
   if (!res.ok) {
@@ -919,7 +944,10 @@ export async function updateAgentFull(token: string, userId: number, data: {
   return res.json();
 }
 
-export async function deleteAgentById(token: string, userId: number): Promise<void> {
+export async function deleteAgentById(
+  token: string,
+  userId: number,
+): Promise<void> {
   const res = await fetch(`${API_BASE_URL}/users/agents/${userId}`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` },
@@ -930,10 +958,16 @@ export async function deleteAgentById(token: string, userId: number): Promise<vo
   }
 }
 
-export async function updateMyTag(token: string, displayName: string): Promise<{ message: string; display_name: string }> {
+export async function updateMyTag(
+  token: string,
+  displayName: string,
+): Promise<{ message: string; display_name: string }> {
   const res = await fetch(`${API_BASE_URL}/users/agents/me/tag`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify({ display_name: displayName }),
   });
   if (!res.ok) {
@@ -946,7 +980,7 @@ export async function updateMyTag(token: string, displayName: string): Promise<{
 // Get agent profile
 export async function getAgentProfile(
   agentId: number,
-  token: string
+  token: string,
 ): Promise<AgentProfileResponse> {
   const response = await fetch(`${API_BASE_URL}/agents/${agentId}/profile`, {
     headers: {
@@ -964,7 +998,8 @@ export async function getAgentProfile(
 // =====================
 // WHATSAPP BAILEYS API
 // =====================
-const BAILEYS_URL = process.env.NEXT_PUBLIC_BAILEYS_URL || "http://localhost:3000";
+const BAILEYS_URL =
+  process.env.NEXT_PUBLIC_BAILEYS_URL || "http://localhost:3000";
 
 export interface WhatsAppStatus {
   status: "disconnected" | "connecting" | "connected" | "qr_ready";
@@ -1005,7 +1040,10 @@ export async function getWhatsAppQR(): Promise<WhatsAppQR> {
   return response.json();
 }
 
-export async function reconnectWhatsApp(): Promise<{ success: boolean; message: string }> {
+export async function reconnectWhatsApp(): Promise<{
+  success: boolean;
+  message: string;
+}> {
   const response = await fetch(`${BAILEYS_URL}/wa/reconnect`, {
     method: "POST",
   });
@@ -1017,7 +1055,10 @@ export async function reconnectWhatsApp(): Promise<{ success: boolean; message: 
   return response.json();
 }
 
-export async function logoutWhatsApp(): Promise<{ success: boolean; message: string }> {
+export async function logoutWhatsApp(): Promise<{
+  success: boolean;
+  message: string;
+}> {
   const response = await fetch(`${BAILEYS_URL}/wa/logout`, {
     method: "POST",
   });
@@ -1042,7 +1083,9 @@ export interface ShortcutMessageResponse {
   updated_at: string;
 }
 
-export async function getShortcuts(token: string): Promise<ShortcutMessageResponse[]> {
+export async function getShortcuts(
+  token: string,
+): Promise<ShortcutMessageResponse[]> {
   const response = await fetch(`${API_BASE_URL}/shortcuts/`, {
     headers: {
       Authorization: `Bearer ${token}`,
@@ -1058,7 +1101,7 @@ export async function getShortcuts(token: string): Promise<ShortcutMessageRespon
 
 export async function searchShortcuts(
   query: string,
-  token: string
+  token: string,
 ): Promise<ShortcutMessageResponse[]> {
   const response = await fetch(
     `${API_BASE_URL}/shortcuts/search?q=${encodeURIComponent(query)}`,
@@ -1066,7 +1109,7 @@ export async function searchShortcuts(
       headers: {
         Authorization: `Bearer ${token}`,
       },
-    }
+    },
   );
 
   if (!response.ok) {
@@ -1078,7 +1121,7 @@ export async function searchShortcuts(
 
 export async function createShortcut(
   data: { key: string; values: string },
-  token: string
+  token: string,
 ): Promise<ShortcutMessageResponse> {
   const response = await fetch(`${API_BASE_URL}/shortcuts/`, {
     method: "POST",
@@ -1100,7 +1143,7 @@ export async function createShortcut(
 export async function updateShortcut(
   shortcutId: number,
   data: { key?: string; values?: string },
-  token: string
+  token: string,
 ): Promise<ShortcutMessageResponse> {
   const response = await fetch(`${API_BASE_URL}/shortcuts/${shortcutId}`, {
     method: "PATCH",
@@ -1120,14 +1163,17 @@ export async function updateShortcut(
 
 export async function duplicateShortcut(
   shortcutId: number,
-  token: string
+  token: string,
 ): Promise<ShortcutMessageResponse> {
-  const response = await fetch(`${API_BASE_URL}/shortcuts/${shortcutId}/duplicate`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
+  const response = await fetch(
+    `${API_BASE_URL}/shortcuts/${shortcutId}/duplicate`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     },
-  });
+  );
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
@@ -1139,7 +1185,7 @@ export async function duplicateShortcut(
 
 export async function deleteShortcut(
   shortcutId: number,
-  token: string
+  token: string,
 ): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/shortcuts/${shortcutId}`, {
     method: "DELETE",
